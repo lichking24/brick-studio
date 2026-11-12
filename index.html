@@ -1487,7 +1487,6 @@
     let weatherAutoTimer = null;
     let timeAutoTimer = null;
     let randomEventTimer = null;
-    let nextLightningAt = 0;
     let lastWeatherFrame = 0;
     let wetToastShown = false;
     let snowToastShown = false;
@@ -1867,13 +1866,6 @@
       document.body.classList.add('weather-' + state.weather, 'time-' + state.timeOfDay);
       rainLines.visible = state.weather === 'rain';
       snowPoints.visible = state.weather === 'snow';
-      if (state.eventsAuto && (state.weather === 'rain' || state.weather === 'snow')) {
-        if (!nextLightningAt) {
-          nextLightningAt = performance.now() + 14000 + Math.random() * 16000;
-        }
-      } else {
-        nextLightningAt = 0;
-      }
       environmentLightTarget = computeEnvironmentLight();
       lastWeatherFrame = performance.now();
       layoutEnvironmentGrounds();
@@ -1974,13 +1966,9 @@
       state.eventsAuto = !state.eventsAuto;
       if (state.eventsAuto) {
         scheduleRandomEvent();
-        if ((state.weather === 'rain' || state.weather === 'snow') && !nextLightningAt) {
-          nextLightningAt = performance.now() + 14000 + Math.random() * 16000;
-        }
-        toast('自动灾害已开启 · 龙卷风、地震、海啸会来访，雨雪天还有雷电');
+        toast('自动灾害已开启 · 每 2–3 分钟随机发生一次');
       } else {
         stopRandomEvents();
-        nextLightningAt = 0;
         toast('自动灾害已关闭');
       }
       updateWeatherUI();
@@ -2163,6 +2151,7 @@
 
     const backdropGroup = new THREE.Group();
     backdropGroup.name = 'backdrop';
+    backdropGroup.position.y = 7.32;
     scene.add(backdropGroup);
 
     function makeMeadowTexture() {
@@ -2562,7 +2551,7 @@
       backdropGroup.add(palm);
       palmTrees.push({ group: palm, phase: Math.random() * Math.PI * 2, baseRot: palm.rotation.z });
     }
-    addPalm(20.5, 22, 0.9);
+    addPalm(24.5, 26, 0.9);
     addPalm(22.5, 46, 0.8);
     addPalm(19.5, -46, 0.85);
     addPalm(56, -72, 1.1);
@@ -2986,14 +2975,16 @@
       new THREE.BufferGeometry().setFromPoints(ropePoints),
       ropeMat
     ));
-    balloonGroup.position.set(-66, 6.8, -14);
+    balloonGroup.position.set(-66, 0, -14);
     balloonGroup.scale.setScalar(1.1);
     backdropGroup.add(balloonGroup);
 
     // rainbow that appears after the rain
     rainbowGroup = new THREE.Group();
-    rainbowGroup.position.set(-2, -7.6, -56);
+    rainbowGroup.name = 'rainbow';
+    rainbowGroup.position.set(0, -7.6, -60);
     rainbowGroup.rotation.y = 0.16;
+    rainbowGroup.scale.setScalar(0.7);
     const rainbowColors = [0xf2a9bb, 0xf6c6a8, 0xf4e09b, 0xb3dccb, 0xafcfe8, 0xccbbe0];
     for (let i = 0; i < rainbowColors.length; i++) {
       const mat = new THREE.MeshBasicMaterial({
@@ -3004,7 +2995,7 @@
         fog: false
       });
       const arc = new THREE.Mesh(
-        new THREE.TorusGeometry(24 - i * 1.0, 0.42, 6, 64, Math.PI),
+        new THREE.TorusGeometry(18.5 - i * 0.85, 0.4, 6, 64, Math.PI),
         mat
       );
       rainbowGroup.add(arc);
@@ -3058,7 +3049,7 @@
       }
       if (balloonGroup) {
         balloonGroup.position.x = -66 + Math.sin(now * 0.00003) * 7.5;
-        balloonGroup.position.y = 6.8 + Math.sin(now * 0.00012) * 0.9;
+        balloonGroup.position.y = Math.sin(now * 0.00012) * 0.9;
       }
       if (windmillBlades) {
         windmillBlades.rotation.z = -(now * 0.00042);
@@ -3510,12 +3501,13 @@
     function scheduleRandomEvent() {
       stopRandomEvents();
       if (!state.eventsAuto) return;
-      const delay = 60000 + Math.random() * 50000;
+      const delay = 120000 + Math.random() * 60000;
       randomEventTimer = setTimeout(function () {
         randomEventTimer = null;
         if (!state.eventsAuto) return;
         if (!document.hidden && !anyMajorActive()) {
           const pool = ['tornado', 'earthquake', 'tsunami'];
+          if (state.weather === 'rain' || state.weather === 'snow') pool.push('lightning');
           triggerEvent(pool[Math.floor(Math.random() * pool.length)]);
         }
         scheduleRandomEvent();
@@ -4276,7 +4268,7 @@
         if (g) tsunami.washTargets.push({ rec: p, x: g.position.x });
       }
       tsunamiGroup.visible = true;
-      tsunamiGroup.position.set(58, 0.1, 0);
+      tsunamiGroup.position.set(58, -0.42, 0);
       tsunamiGroup.scale.set(1, 0.8, 1);
       tsunamiFlood.visible = true;
       tsunamiFloodMat.opacity = 0;
@@ -4406,18 +4398,6 @@
       playSound('thunder');
       if (hitCount || manual) toast(hitCount ? '雷电落下 · 有角色被击中了' : '雷电劈在了空地上');
       return true;
-    }
-
-    function updateWeatherLightning(now) {
-      if (!nextLightningAt) return;
-      if (!state.eventsAuto) return;
-      if (state.weather !== 'rain' && state.weather !== 'snow') {
-        nextLightningAt = 0;
-        return;
-      }
-      if (now < nextLightningAt) return;
-      nextLightningAt = now + 26000 + Math.random() * 22000;
-      if (!anyMajorActive()) triggerLightning(false);
     }
 
     backdropReady = true;
@@ -8799,7 +8779,6 @@
       updateTornado(now);
       updateQuake(now);
       updateTsunami(now);
-      updateWeatherLightning(now);
       updateBackdrop(now);
       updateFx(now);
 
