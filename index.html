@@ -1018,7 +1018,8 @@
         <button class="cat-tab" data-cat="build" role="tab">建筑</button>
         <button class="cat-tab" data-cat="person" role="tab">人物</button>
         <button class="cat-tab" data-cat="animal" role="tab">动物</button>
-        <button class="cat-tab" data-cat="traffic" role="tab">交通</button>
+        <button class="cat-tab" data-cat="road" role="tab">道路</button>
+        <button class="cat-tab" data-cat="vehicle" role="tab">车辆</button>
       </div>
       <div class="dock__row">
         <div class="brick-list" id="brickList"></div>
@@ -1101,7 +1102,8 @@
       { id: 'build', label: '建筑' },
       { id: 'person', label: '人物' },
       { id: 'animal', label: '动物' },
-      { id: 'traffic', label: '交通' }
+      { id: 'road', label: '道路' },
+      { id: 'vehicle', label: '车辆' }
     ];
 
     const BRICK_DEFS = [
@@ -1149,14 +1151,24 @@
       { id: 'table', name: '桌子', cat: 'furniture', w: 2, d: 2, height: 0.82 },
       { id: 'lamp', name: '台灯', cat: 'furniture', w: 1, d: 1, height: 1.16 },
       { id: 'plant', name: '盆栽', cat: 'furniture', w: 1, d: 1, height: 1.0 },
-      { id: 'road_straight', name: '公路', cat: 'traffic', w: 2, d: 4, height: 0.72, support: true },
-      { id: 'road_curve', name: '弯道', cat: 'traffic', w: 2, d: 2, height: 0.72, support: true },
-      { id: 'road_cross', name: '路口', cat: 'traffic', w: 4, d: 4, height: 0.72, support: true },
-      { id: 'rail_track', name: '轨道', cat: 'traffic', w: 2, d: 4, height: 0.72, support: true },
-      { id: 'train', name: '小火车', cat: 'traffic', w: 2, d: 6, height: 1.4, layers: 2, native: true, support: true, supportArea: { x: 0, z: 0, w: 2, d: 3 }, strictSupport: true },
-      { id: 'train_car', name: '客车厢', cat: 'traffic', w: 2, d: 4, height: 1.4, layers: 2, native: true, support: true },
-      { id: 'train_freight', name: '货车厢', cat: 'traffic', w: 2, d: 4, height: 1.4, layers: 2, native: true, support: true },
-      { id: 'car', name: '小汽车', cat: 'traffic', w: 2, d: 3, height: 1.4, layers: 2, native: true, support: true },
+      { id: 'road_straight', name: '公路', cat: 'road', w: 2, d: 4, height: 0.72, support: true },
+      { id: 'road_curve', name: '弯道', cat: 'road', w: 2, d: 2, height: 0.72, support: true },
+      { id: 'road_cross', name: '路口', cat: 'road', w: 4, d: 4, height: 0.72, support: true },
+      { id: 'rail_track', name: '轨道', cat: 'road', w: 2, d: 4, height: 0.72, support: true },
+      { id: 'river_straight', name: '河流', cat: 'road', w: 2, d: 4, height: 0.32, native: true },
+      { id: 'river_curve', name: '河湾', cat: 'road', w: 2, d: 2, height: 0.32, native: true },
+      { id: 'bridge', name: '石桥', cat: 'road', w: 2, d: 4, height: 0.72, native: true, support: true },
+      { id: 'grass_bank', name: '草地', cat: 'road', w: 2, d: 4, height: 0.72, native: true, support: true },
+      { id: 'car', name: '小汽车', cat: 'vehicle', w: 2, d: 3, height: 1.4, layers: 2, native: true, support: true },
+      { id: 'bus', name: '小巴士', cat: 'vehicle', w: 2, d: 5, height: 1.4, layers: 2, native: true, support: true },
+      { id: 'fire_truck', name: '消防车', cat: 'vehicle', w: 2, d: 4, height: 1.4, layers: 2, native: true, support: true },
+      { id: 'ambulance', name: '救护车', cat: 'vehicle', w: 2, d: 4, height: 1.4, layers: 2, native: true, support: true },
+      { id: 'police_car', name: '警车', cat: 'vehicle', w: 2, d: 4, height: 1.4, layers: 2, native: true, support: true },
+      { id: 'truck', name: '小卡车', cat: 'vehicle', w: 2, d: 4, height: 1.4, layers: 2, native: true, support: true },
+      { id: 'ice_cream', name: '冰淇淋车', cat: 'vehicle', w: 2, d: 4, height: 1.4, layers: 2, native: true, support: true },
+      { id: 'train', name: '小火车', cat: 'vehicle', w: 2, d: 6, height: 1.4, layers: 2, native: true, support: true, supportArea: { x: 0, z: 0, w: 2, d: 3 }, strictSupport: true },
+      { id: 'train_car', name: '客车厢', cat: 'vehicle', w: 2, d: 4, height: 1.4, layers: 2, native: true, support: true },
+      { id: 'train_freight', name: '货车厢', cat: 'vehicle', w: 2, d: 4, height: 1.4, layers: 2, native: true, support: true },
       { id: 'column', name: '柱子', cat: 'build', w: 1, d: 1, height: 2.8, layers: 4, native: true, support: true },
       { id: 'fence', name: '围栏', cat: 'build', w: 2, d: 1, height: 1.1, native: true },
       { id: 'door', name: '门', cat: 'build', w: 2, d: 1, height: 2.8, layers: 4, native: true, support: true },
@@ -2296,6 +2308,23 @@
       return g;
     }
 
+
+    function addAnimalEyeBackdrop(g, x, y, z, sx, sy, irisColor) {
+      const sclera = propMat('#fff8ec');
+      const iris = propMat(irisColor);
+      const shine = propMat('#ffffff');
+      addPropSphere(g, sclera, sx, sy, 0.018, x, y, z - 0.014, 14);
+      addPropSphere(g, iris, sx * 0.8, sy * 0.82, 0.014, x, y, z - 0.007, 12);
+      addPropSphere(g, shine, 0.009, 0.012, 0.006, x + (x < 0 ? 0.012 : -0.012), y + 0.013, z + 0.008, 8);
+      addPropSphere(g, shine, 0.005, 0.007, 0.004, x + (x < 0 ? -0.011 : 0.011), y - 0.012, z + 0.006, 6);
+    }
+
+    function addCheekFluff(g, x, y, z, size, mat) {
+      addPropSphere(g, mat, size, size * 0.8, size * 0.72, x, y, z, 12);
+      addPropSphere(g, mat, size * 0.62, size * 0.55, size * 0.5, x + (x < 0 ? -size * 0.5 : size * 0.5), y + size * 0.48, z - size * 0.06, 10);
+      addPropSphere(g, mat, size * 0.46, size * 0.42, size * 0.4, x + (x < 0 ? -size * 0.9 : size * 0.9), y + size * 0.08, z - size * 0.12, 10);
+    }
+
     function buildCat() {
       const g = new THREE.Group();
       const orange = propMat('#e99a55');
@@ -2320,6 +2349,15 @@
       addPropSphere(g, pink, 0.04, 0.028, 0.03, 0, 0.67, 0.43, 10);
       addPropSphere(g, dark, 0.035, 0.045, 0.02, -0.1, 0.72, 0.4, 10);
       addPropSphere(g, dark, 0.035, 0.045, 0.02, 0.1, 0.72, 0.4, 10);
+      addAnimalEyeBackdrop(g, -0.1, 0.72, 0.4, 0.055, 0.066, '#7fa06a');
+      addAnimalEyeBackdrop(g, 0.1, 0.72, 0.4, 0.055, 0.066, '#7fa06a');
+      addCheekFluff(g, -0.23, 0.63, 0.3, 0.075, cream);
+      addCheekFluff(g, 0.23, 0.63, 0.3, 0.075, cream);
+      addPropBox(g, orange, 0.022, 0.1, 0.018, -0.06, 0.87, 0.285, 0, 0, 0.24);
+      addPropBox(g, orange, 0.022, 0.085, 0.018, 0, 0.88, 0.295, 0, 0, 0.02);
+      addPropBox(g, orange, 0.022, 0.07, 0.018, 0.06, 0.865, 0.285, 0, 0, -0.24);
+      addPropSphere(g, propMat('#f2a9bb'), 0.045, 0.035, 0.045, 0.2, 0.94, 0.17, 10);
+      addPropSphere(g, propMat('#f6e3a7'), 0.018, 0.015, 0.018, 0.2, 0.955, 0.2, 8);
       const tailCurve = new THREE.CatmullRomCurve3([
         new THREE.Vector3(0, 0.3, -0.38),
         new THREE.Vector3(0.08, 0.45, -0.5),
@@ -2380,6 +2418,12 @@
       addPropSphere(g, dark, 0.045, 0.04, 0.035, 0, 0.77, 0.55, 10);
       addPropSphere(g, dark, 0.035, 0.045, 0.02, -0.11, 0.84, 0.43, 10);
       addPropSphere(g, dark, 0.035, 0.045, 0.02, 0.11, 0.84, 0.43, 10);
+      addAnimalEyeBackdrop(g, -0.11, 0.84, 0.43, 0.06, 0.07, '#6b4a33');
+      addAnimalEyeBackdrop(g, 0.11, 0.84, 0.43, 0.06, 0.07, '#6b4a33');
+      addCheekFluff(g, -0.24, 0.75, 0.35, 0.08, cream);
+      addCheekFluff(g, 0.24, 0.75, 0.35, 0.08, cream);
+      addPropSphere(g, cream, 0.06, 0.12, 0.03, 0, 0.91, 0.39, 12);
+      addPropBox(g, propMat('#9db1cf'), 0.16, 0.16, 0.03, 0, 0.55, 0.44, 0, 0, 0.6);
       addPropSphere(g, ear, 0.1, 0.2, 0.07, -0.29, 0.77, 0.11, 16);
       addPropSphere(g, ear, 0.1, 0.2, 0.07, 0.29, 0.77, 0.11, 16);
       const collar = new THREE.Mesh(new THREE.TorusGeometry(0.2, 0.028, 8, 20), red);
@@ -2421,6 +2465,10 @@
       addPropSphere(g, yellow, 0.23, 0.23, 0.23, 0, 0.58, 0.14, 20);
       addPropSphere(g, dark, 0.033, 0.04, 0.02, -0.085, 0.64, 0.358, 10);
       addPropSphere(g, dark, 0.033, 0.04, 0.02, 0.085, 0.64, 0.358, 10);
+      addAnimalEyeBackdrop(g, -0.085, 0.64, 0.358, 0.052, 0.06, '#5f8a72');
+      addAnimalEyeBackdrop(g, 0.085, 0.64, 0.358, 0.052, 0.06, '#5f8a72');
+      addCheekFluff(g, -0.19, 0.58, 0.29, 0.065, light);
+      addCheekFluff(g, 0.19, 0.58, 0.29, 0.065, light);
       addPropCylinder(g, orange, 0.001, 0.1, 0.18, 12, 0, 0.56, 0.4, Math.PI / 2, 0, 0);
       addPropSphere(g, light, 0.07, 0.15, 0.24, -0.29, 0.34, -0.02, 14);
       addPropSphere(g, light, 0.07, 0.15, 0.24, 0.29, 0.34, -0.02, 14);
@@ -3046,16 +3094,24 @@
       const eyeWhite = propMat('#fff8ec');
       const shine = propMat('#ffffff');
       const dark = propMat('#5b525d');
+      const iris = propMat(opts.eyeColor || '#7d5c4a');
       const blush = propMat('#f0b7b5');
       const skin = propMat(opts.skin);
-      addPropSphere(g, eyeWhite, 0.043, 0.052, 0.018, -0.086, 1.2, 0.255, 12);
-      addPropSphere(g, eyeWhite, 0.043, 0.052, 0.018, 0.086, 1.2, 0.255, 12);
-      addPropSphere(g, dark, 0.021, 0.029, 0.014, -0.086, 1.198, 0.272, 10);
-      addPropSphere(g, dark, 0.021, 0.029, 0.014, 0.086, 1.198, 0.272, 10);
-      addPropSphere(g, shine, 0.011, 0.014, 0.007, -0.078, 1.212, 0.284, 8);
-      addPropSphere(g, shine, 0.011, 0.014, 0.007, 0.094, 1.212, 0.284, 8);
+      const eyes = new THREE.Group();
+      eyes.name = 'eyes';
+      eyes.position.set(0, 1.2, 0);
+      for (let s = -1; s <= 1; s += 2) {
+        addPropSphere(eyes, eyeWhite, 0.049, 0.062, 0.02, s * 0.088, 0, 0.255, 14);
+        addPropSphere(eyes, iris, 0.03, 0.038, 0.014, s * 0.088, -0.002, 0.269, 12);
+        addPropSphere(eyes, dark, 0.017, 0.025, 0.012, s * 0.088, -0.002, 0.279, 10);
+        addPropSphere(eyes, shine, 0.012, 0.015, 0.007, s * 0.078, 0.014, 0.288, 8);
+        addPropSphere(eyes, shine, 0.006, 0.008, 0.005, s * 0.097, -0.012, 0.286, 6);
+      }
+      g.add(eyes);
       addPropBox(g, dark, 0.055, 0.013, 0.012, -0.086, 1.255, 0.251, 0, 0, 0.13);
       addPropBox(g, dark, 0.055, 0.013, 0.012, 0.086, 1.255, 0.251, 0, 0, -0.13);
+      addPropBox(g, dark, 0.06, 0.008, 0.01, -0.088, 1.225, 0.27, 0, 0, 0.12);
+      addPropBox(g, dark, 0.06, 0.008, 0.01, 0.088, 1.225, 0.27, 0, 0, -0.12);
       addPropSphere(g, skin, 0.03, 0.024, 0.02, 0, 1.135, 0.27, 10);
       addPropSphere(g, blush, 0.045, 0.02, 0.014, -0.16, 1.12, 0.248, 10);
       addPropSphere(g, blush, 0.045, 0.02, 0.014, 0.16, 1.12, 0.248, 10);
@@ -3065,29 +3121,57 @@
       smile.castShadow = false;
       g.add(smile);
       if (opts.lashes) {
-        addPropBox(g, dark, 0.045, 0.009, 0.01, -0.124, 1.19, 0.263, 0, 0, -0.5);
-        addPropBox(g, dark, 0.045, 0.009, 0.01, 0.124, 1.19, 0.263, 0, 0, 0.5);
+        addPropBox(g, dark, 0.05, 0.01, 0.01, -0.13, 1.19, 0.264, 0, 0, -0.55);
+        addPropBox(g, dark, 0.05, 0.01, 0.01, 0.13, 1.19, 0.264, 0, 0, 0.55);
+        addPropSphere(g, blush, 0.055, 0.018, 0.01, -0.17, 1.13, 0.252, 8);
+        addPropSphere(g, blush, 0.055, 0.018, 0.01, 0.17, 1.13, 0.252, 8);
       }
     }
 
-    function addPersonHair(g, style, hair) {
-      addPropSphere(g, hair, 0.285, 0.17, 0.28, 0, 1.29, -0.02, 20);
+    function addPersonHair(g, style, hair, hairLight) {
+      addPropSphere(g, hair, 0.285, 0.17, 0.28, 0, 1.29, -0.02, 22);
       addPropSphere(g, hair, 0.12, 0.06, 0.06, -0.035, 1.305, 0.205, 14);
       addPropSphere(g, hair, 0.08, 0.055, 0.055, 0.075, 1.3, 0.21, 12);
+      if (hairLight) {
+        addPropSphere(g, hairLight, 0.14, 0.028, 0.035, -0.03, 1.385, 0.09, 10);
+        addPropSphere(g, hairLight, 0.055, 0.02, 0.025, 0.15, 1.35, 0.04, 8);
+      }
       if (style === 'bob') {
-        addPropSphere(g, hair, 0.09, 0.17, 0.11, -0.245, 1.13, 0.015, 14);
-        addPropSphere(g, hair, 0.09, 0.17, 0.11, 0.245, 1.13, 0.015, 14);
-        addPropSphere(g, hair, 0.23, 0.2, 0.11, 0, 1.14, -0.18, 16);
+        addPropSphere(g, hair, 0.09, 0.17, 0.11, -0.245, 1.13, 0.015, 16);
+        addPropSphere(g, hair, 0.09, 0.17, 0.11, 0.245, 1.13, 0.015, 16);
+        addPropSphere(g, hair, 0.23, 0.2, 0.11, 0, 1.14, -0.18, 18);
+        addPropSphere(g, hair, 0.08, 0.08, 0.08, -0.25, 1.02, 0.04, 10);
+        addPropSphere(g, hair, 0.08, 0.08, 0.08, 0.25, 1.02, 0.04, 10);
         addPropSphere(g, hair, 0.21, 0.06, 0.055, 0, 1.31, 0.21, 14);
+        addPropSphere(g, hair, 0.065, 0.035, 0.04, -0.13, 1.32, 0.22, 8);
+        addPropSphere(g, hair, 0.06, 0.03, 0.035, 0.04, 1.315, 0.235, 8);
+        if (hairLight) addPropSphere(g, hairLight, 0.07, 0.022, 0.03, -0.2, 1.23, 0.1, 8);
       } else if (style === 'bun') {
         addPropSphere(g, hair, 0.09, 0.16, 0.11, -0.24, 1.14, 0.015, 14);
         addPropSphere(g, hair, 0.09, 0.16, 0.11, 0.24, 1.14, 0.015, 14);
         addPropSphere(g, hair, 0.11, 0.11, 0.11, 0, 1.4, -0.18, 16);
         addPropSphere(g, hair, 0.06, 0.04, 0.06, 0, 1.46, -0.17, 12);
+        const tie = new THREE.Mesh(new THREE.TorusGeometry(0.105, 0.018, 6, 16), propMat('#dcc692'));
+        tie.rotation.x = Math.PI / 2;
+        tie.position.set(0, 1.325, -0.17);
+        g.add(tie);
+        addPropSphere(g, hair, 0.04, 0.12, 0.03, -0.19, 1.2, 0.13, 8);
+        addPropSphere(g, hair, 0.035, 0.1, 0.03, 0.2, 1.19, 0.1, 8);
+        if (hairLight) addPropSphere(g, hairLight, 0.06, 0.02, 0.025, -0.02, 1.38, 0.08, 8);
       } else if (style === 'curly') {
         addPropSphere(g, hair, 0.1, 0.09, 0.09, -0.12, 1.37, 0.08, 12);
         addPropSphere(g, hair, 0.1, 0.09, 0.09, 0.12, 1.37, 0.08, 12);
         addPropSphere(g, hair, 0.08, 0.08, 0.08, 0, 1.42, 0.03, 12);
+        addPropSphere(g, hair, 0.07, 0.07, 0.07, -0.2, 1.25, 0.14, 10);
+        addPropSphere(g, hair, 0.07, 0.07, 0.07, 0.2, 1.25, 0.14, 10);
+        if (hairLight) addPropSphere(g, hairLight, 0.04, 0.02, 0.02, -0.06, 1.43, 0.13, 8);
+      } else {
+        addPropSphere(g, hair, 0.09, 0.07, 0.08, -0.17, 1.36, 0.08, 10);
+        addPropSphere(g, hair, 0.07, 0.06, 0.07, 0.17, 1.37, 0.06, 10);
+        addPropSphere(g, hair, 0.06, 0.05, 0.06, 0.02, 1.41, 0.01, 10);
+        addPropSphere(g, hair, 0.04, 0.06, 0.04, 0.11, 1.34, 0.17, 8);
+        addPropSphere(g, hair, 0.09, 0.07, 0.06, -0.18, 1.15, -0.06, 10);
+        addPropSphere(g, hair, 0.09, 0.07, 0.06, 0.18, 1.15, -0.06, 10);
       }
     }
 
@@ -3095,6 +3179,10 @@
       const g = new THREE.Group();
       const skin = propMat(opts.skin || '#f5d997');
       const hair = propMat(opts.hair || '#6f574f');
+      const hairLight = new THREE.MeshStandardMaterial({
+        color: new THREE.Color(opts.hair || '#6f574f').lerp(new THREE.Color(0xffffff), 0.28),
+        roughness: 0.8
+      });
       const shirt = propMat(opts.shirt || '#b3dccb');
       const pants = propMat(opts.pants || '#9db1cf');
       const shoe = propMat(opts.shoes || '#6e6571');
@@ -3119,39 +3207,47 @@
       } else {
         addPropCylinder(g, pants, 0.072, 0.075, 0.38, 12, -0.11, 0.29, 0);
         addPropCylinder(g, pants, 0.072, 0.075, 0.38, 12, 0.11, 0.29, 0);
-        addPropBox(g, shoe, 0.15, 0.07, 0.24, -0.11, 0.035, 0.045);
-        addPropBox(g, shoe, 0.15, 0.07, 0.24, 0.11, 0.035, 0.045);
+        addPropBox(g, propMat('#4d4853'), 0.16, 0.018, 0.25, -0.11, 0.012, 0.045);
+        addPropBox(g, propMat('#4d4853'), 0.16, 0.018, 0.25, 0.11, 0.012, 0.045);
+        addPropBox(g, shoe, 0.15, 0.07, 0.24, -0.11, 0.04, 0.045);
+        addPropBox(g, shoe, 0.15, 0.07, 0.24, 0.11, 0.04, 0.045);
         addPropSphere(g, shirt, 0.29, 0.31, 0.2, 0, 0.73, 0, 22);
         addPropBox(g, pants, 0.48, 0.06, 0.34, 0, 0.52, 0);
+        addPropBox(g, propMat('#c6a14f'), 0.09, 0.04, 0.02, 0, 0.52, 0.175);
       }
       addPropBox(g, accent, 0.24, 0.055, 0.26, 0, 0.96, 0);
+      addPropBox(g, accent, 0.07, 0.16, 0.02, -0.07, 0.9, 0.19, 0, 0, 0.26);
+      addPropBox(g, accent, 0.07, 0.16, 0.02, 0.07, 0.9, 0.19, 0, 0, -0.26);
+      addPropBox(g, accent, 0.16, 0.12, 0.02, -0.11, 0.63, 0.2);
       addPropSphere(g, accent, 0.024, 0.024, 0.012, 0, 0.8, 0.198, 8);
       addPropSphere(g, accent, 0.024, 0.024, 0.012, 0, 0.68, 0.206, 8);
+      addPropSphere(g, accent, 0.012, 0.012, 0.006, -0.11, 0.65, 0.214, 6);
       for (let s = -1; s <= 1; s += 2) {
         addPropCylinder(g, skin, 0.05, 0.055, 0.28, 10, s * 0.31, 0.82, 0, 0, 0, s * 0.18);
         addPropSphere(g, skin, 0.06, 0.06, 0.06, s * 0.365, 0.66, 0.02, 12);
         addPropCylinder(g, shirt, 0.074, 0.078, 0.105, 10, s * 0.31, 0.9, 0, 0, 0, s * 0.18);
+        addPropCylinder(g, accent, 0.057, 0.057, 0.035, 10, s * 0.35, 0.705, 0.02, 0, 0, s * 0.18);
       }
       addPropCylinder(g, skin, 0.07, 0.075, 0.1, 10, 0, 0.99, 0);
       addPropSphere(g, skin, 0.27, 0.28, 0.27, 0, 1.17, 0, 24);
       addPropSphere(g, skin, 0.05, 0.06, 0.03, -0.272, 1.15, 0.02, 10);
       addPropSphere(g, skin, 0.05, 0.06, 0.03, 0.272, 1.15, 0.02, 10);
-      addPersonFace(g, { skin: opts.skin, lashes: opts.lashes });
-      addPersonHair(g, opts.hairStyle || 'short', hair);
+      addPersonFace(g, { skin: opts.skin, lashes: opts.lashes, eyeColor: opts.eyeColor });
+      addPersonHair(g, opts.hairStyle || 'short', hair, hairLight);
       if (opts.details) opts.details(g);
       return g;
     }
 
     function buildPersonMinifig() {
       return buildPersonBase({
-        skin: '#f5d997', hair: '#6f574f', hairStyle: 'short',
+        skin: '#f5d997', eyeColor: '#7d5c4a', hair: '#6f574f', hairStyle: 'short',
         shirt: '#b3dccb', pants: '#9db1cf', shoes: '#6e6571', accent: '#f8f1e6'
       });
     }
 
     function buildPersonGirl() {
       const g = buildPersonBase({
-        skin: '#f5d997', hair: '#a88979', hairStyle: 'bob', dress: true,
+        skin: '#f5d997', eyeColor: '#6e8fbf', hair: '#a88979', hairStyle: 'bob', dress: true,
         shirt: '#efaec2', pants: '#efaec2', shoes: '#b8a6c8', accent: '#f8f1e6', lashes: true
       });
       const dress = propMat('#efaec2');
@@ -3165,7 +3261,7 @@
 
     function buildFirefighter() {
       const g = buildPersonBase({
-        skin: '#e8b98d', hair: '#5b525d', hairStyle: 'short',
+        skin: '#e8b98d', eyeColor: '#815d3f', hair: '#5b525d', hairStyle: 'short',
         shirt: '#e8a1b0', pants: '#6e6571', shoes: '#5b525d', accent: '#f8f1e6'
       });
       const cream = propMat('#f8f1e6');
@@ -3183,7 +3279,7 @@
 
     function buildDoctor() {
       const g = buildPersonBase({
-        skin: '#f5d997', hair: '#6f574f', hairStyle: 'bob',
+        skin: '#f5d997', eyeColor: '#5f8a72', hair: '#6f574f', hairStyle: 'bob',
         shirt: '#f8f1e6', pants: '#9db1cf', shoes: '#6e6571', accent: '#b3dccb'
       });
       const dark = propMat('#5b525d');
@@ -3209,7 +3305,7 @@
 
     function buildNurse() {
       const g = buildPersonBase({
-        skin: '#e8b98d', hair: '#a88979', hairStyle: 'bun', dress: true,
+        skin: '#e8b98d', eyeColor: '#7d5c4a', hair: '#a88979', hairStyle: 'bun', dress: true,
         shirt: '#b3dccb', pants: '#b3dccb', shoes: '#f8f1e6', accent: '#f8f1e6', lashes: true
       });
       const cream = propMat('#f8f1e6');
@@ -3223,7 +3319,7 @@
 
     function buildChef() {
       const g = buildPersonBase({
-        skin: '#f5d997', hair: '#5b525d', hairStyle: 'short',
+        skin: '#f5d997', eyeColor: '#6b5847', hair: '#5b525d', hairStyle: 'short',
         shirt: '#f8f1e6', pants: '#9b8c95', shoes: '#6e6571', accent: '#afcfe8'
       });
       const cream = propMat('#f8f1e6');
@@ -3244,7 +3340,7 @@
 
     function buildPolice() {
       const g = buildPersonBase({
-        skin: '#e8b98d', hair: '#5b525d', hairStyle: 'short',
+        skin: '#e8b98d', eyeColor: '#6e8fbf', hair: '#5b525d', hairStyle: 'short',
         shirt: '#9db1cf', pants: '#7f95b8', shoes: '#5b525d', accent: '#f8f1e6'
       });
       const dark = propMat('#5b525d');
@@ -3262,7 +3358,7 @@
 
     function buildPostman() {
       const g = buildPersonBase({
-        skin: '#f5d997', hair: '#6f574f', hairStyle: 'short',
+        skin: '#f5d997', eyeColor: '#7d5c4a', hair: '#6f574f', hairStyle: 'short',
         shirt: '#a5c9e0', pants: '#87abc4', shoes: '#6e6571', accent: '#f8f1e6'
       });
       const cream = propMat('#f8f1e6');
@@ -3280,7 +3376,7 @@
 
     function buildGardener() {
       const g = buildPersonBase({
-        skin: '#e8b98d', hair: '#b99782', hairStyle: 'bun',
+        skin: '#e8b98d', eyeColor: '#5f8a72', hair: '#b99782', hairStyle: 'bun',
         shirt: '#f8f1e6', pants: '#b3dccb', shoes: '#6e6571', accent: '#c6dcb4'
       });
       const green = propMat('#b3dccb');
@@ -3304,7 +3400,7 @@
 
     function buildAstronaut() {
       const g = buildPersonBase({
-        skin: '#f5d997', hair: '#5b525d', hairStyle: 'short',
+        skin: '#f5d997', eyeColor: '#815d3f', hair: '#5b525d', hairStyle: 'short',
         shirt: '#f8f1e6', pants: '#f8f1e6', shoes: '#d2cbd3', accent: '#afcfe8'
       });
       const cream = propMat('#f8f1e6');
@@ -3362,6 +3458,14 @@
       }
       addPropSphere(g, dark, 0.035, 0.045, 0.02, -0.1, 0.8, 0.39, 10);
       addPropSphere(g, dark, 0.035, 0.045, 0.02, 0.1, 0.8, 0.39, 10);
+      addAnimalEyeBackdrop(g, -0.1, 0.8, 0.39, 0.06, 0.073, '#8a624a');
+      addAnimalEyeBackdrop(g, 0.1, 0.8, 0.39, 0.06, 0.073, '#8a624a');
+      addCheekFluff(g, -0.22, 0.69, 0.32, 0.08, cream);
+      addCheekFluff(g, 0.22, 0.69, 0.32, 0.08, cream);
+      addPropSphere(g, pink, 0.045, 0.04, 0.01, -0.11, 1.02, 0.17, 10);
+      addPropSphere(g, pink, 0.045, 0.04, 0.01, 0.11, 1.02, 0.17, 10);
+      addPropSphere(g, propMat('#f2a9bb'), 0.05, 0.04, 0.05, 0.2, 1.22, 0.15, 10);
+      addPropSphere(g, propMat('#f6e3a7'), 0.02, 0.018, 0.02, 0.2, 1.235, 0.19, 8);
       addPropSphere(g, cream, 0.012, 0.015, 0.008, -0.092, 0.81, 0.405, 8);
       addPropSphere(g, cream, 0.012, 0.015, 0.008, 0.092, 0.81, 0.405, 8);
       addPropSphere(g, pink, 0.035, 0.028, 0.025, 0, 0.73, 0.42, 10);
@@ -3403,6 +3507,15 @@
       addPropSphere(g, cream, 0.035, 0.042, 0.016, 0.11, 0.83, 0.41, 10);
       addPropSphere(g, dark, 0.018, 0.022, 0.01, -0.11, 0.835, 0.425, 8);
       addPropSphere(g, dark, 0.018, 0.022, 0.01, 0.11, 0.835, 0.425, 8);
+      addPropSphere(g, propMat('#8a624a'), 0.032, 0.038, 0.012, -0.11, 0.835, 0.416, 10);
+      addPropSphere(g, propMat('#8a624a'), 0.032, 0.038, 0.012, 0.11, 0.835, 0.416, 10);
+      addPropSphere(g, propMat('#fff8ec'), 0.009, 0.011, 0.006, -0.1, 0.848, 0.428, 6);
+      addPropSphere(g, propMat('#fff8ec'), 0.009, 0.011, 0.006, 0.12, 0.848, 0.428, 6);
+      addCheekFluff(g, -0.25, 0.73, 0.3, 0.075, propMat('#f8f1e6'));
+      addCheekFluff(g, 0.25, 0.73, 0.3, 0.075, propMat('#f8f1e6'));
+      addPropCylinder(g, propMat('#a8d1b9'), 0.02, 0.028, 0.42, 8, 0.38, 0.36, 0.02, 0, 0, 0.18);
+      addPropSphere(g, propMat('#a8d1b9'), 0.06, 0.12, 0.03, 0.32, 0.5, 0.02, 8);
+      addPropSphere(g, propMat('#a8d1b9'), 0.06, 0.1, 0.03, 0.42, 0.48, 0.02, 8);
       addPropSphere(g, dark, 0.04, 0.032, 0.025, 0, 0.76, 0.43, 10);
       addPropBox(g, dark, 0.03, 0.008, 0.01, -0.03, 0.72, 0.435, 0, 0, 0.5);
       addPropBox(g, dark, 0.03, 0.008, 0.01, 0.03, 0.72, 0.435, 0, 0, -0.5);
@@ -3436,6 +3549,13 @@
       addPropSphere(g, dark, 0.045, 0.035, 0.03, 0, 0.78, 0.48, 10);
       addPropSphere(g, dark, 0.035, 0.045, 0.02, -0.11, 0.84, 0.4, 10);
       addPropSphere(g, dark, 0.035, 0.045, 0.02, 0.11, 0.84, 0.4, 10);
+      addAnimalEyeBackdrop(g, -0.11, 0.84, 0.4, 0.058, 0.07, '#6b8c62');
+      addAnimalEyeBackdrop(g, 0.11, 0.84, 0.4, 0.058, 0.07, '#6b8c62');
+      addCheekFluff(g, -0.23, 0.72, 0.33, 0.08, cream);
+      addCheekFluff(g, 0.23, 0.72, 0.33, 0.08, cream);
+      addPropSphere(g, cream, 0.055, 0.13, 0.02, 0, 0.91, 0.37, 12);
+      addPropSphere(g, cream, 0.09, 0.055, 0.06, -0.18, 0.66, 0.2, 10);
+      addPropSphere(g, cream, 0.09, 0.055, 0.06, 0.18, 0.66, 0.2, 10);
       addPropSphere(g, cream, 0.012, 0.015, 0.008, -0.102, 0.85, 0.415, 8);
       addPropSphere(g, cream, 0.012, 0.015, 0.008, 0.102, 0.85, 0.415, 8);
       addPropSphere(g, pink, 0.04, 0.02, 0.014, -0.19, 0.76, 0.38, 10);
@@ -3479,12 +3599,301 @@
       addPropSphere(g, cream, 0.013, 0.016, 0.009, 0.1, 0.82, 0.4, 8);
       addPropSphere(g, dark, 0.033, 0.043, 0.02, -0.1, 0.8, 0.38, 10);
       addPropSphere(g, dark, 0.033, 0.043, 0.02, 0.1, 0.8, 0.38, 10);
+      addAnimalEyeBackdrop(g, -0.1, 0.8, 0.38, 0.055, 0.066, '#7d5c4a');
+      addAnimalEyeBackdrop(g, 0.1, 0.8, 0.38, 0.055, 0.066, '#7d5c4a');
+      addCheekFluff(g, -0.23, 0.7, 0.3, 0.075, deep);
+      addCheekFluff(g, 0.23, 0.7, 0.3, 0.075, deep);
+      addPropSphere(g, pink, 0.045, 0.04, 0.05, 0.2, 0.97, 0.12, 10);
+      addPropSphere(g, propMat('#f6e3a7'), 0.018, 0.017, 0.018, 0.2, 0.985, 0.155, 8);
+      const curlCurve = new THREE.CatmullRomCurve3([
+        new THREE.Vector3(0.02, 0.36, -0.43),
+        new THREE.Vector3(0.12, 0.43, -0.48),
+        new THREE.Vector3(0.16, 0.49, -0.41),
+        new THREE.Vector3(0.1, 0.53, -0.35),
+        new THREE.Vector3(0.05, 0.5, -0.39)
+      ]);
+      const curl = new THREE.Mesh(new THREE.TubeGeometry(curlCurve, 14, 0.018, 7, false), deep);
+      curl.castShadow = true;
+      g.add(curl);
       addPropBox(g, dark, 0.02, 0.008, 0.01, -0.03, 0.69, 0.49, 0, 0, 0.5);
       addPropBox(g, dark, 0.02, 0.008, 0.01, 0.03, 0.69, 0.49, 0, 0, -0.5);
       addPropSphere(g, blush, 0.035, 0.018, 0.012, -0.19, 0.76, 0.37, 10);
       addPropSphere(g, blush, 0.035, 0.018, 0.012, 0.19, 0.76, 0.37, 10);
       addPropSphere(g, deep, 0.07, 0.07, 0.07, 0, 0.32, -0.42, 12);
       addPropSphere(g, cream, 0.16, 0.14, 0.12, 0, 0.34, 0.02, 12);
+      return g;
+    }
+
+
+    function buildRiverStraight() {
+      const g = new THREE.Group();
+      const deep = propMat('#6aaec6');
+      const water = propMat('#9bd8e8');
+      const ripple = propMat('#d8f2fa');
+      const grass = propMat('#b9d8a8');
+      const grassDeep = propMat('#9ec794');
+      const stone = propMat('#c8bda9');
+      addPropBox(g, deep, 1.96, 0.28, 3.96, 0, 0.15, 0);
+      addPropBox(g, water, 1.7, 0.06, 3.8, 0, 0.31, 0);
+      for (let s = -1; s <= 1; s += 2) {
+        addPropBox(g, grass, 0.18, 0.3, 3.96, s * 0.88, 0.31, 0);
+        addPropBox(g, grassDeep, 0.18, 0.05, 3.96, s * 0.88, 0.46, 0);
+        for (let i = 0; i < 4; i++) {
+          addPropSphere(g, grass, 0.07, 0.075, 0.07, s * 0.87, 0.5, -1.45 + i * 0.95, 8);
+        }
+      }
+      addPropBox(g, ripple, 0.02, 0.012, 0.55, -0.35, 0.345, -0.9, 0, 0.3, 0);
+      addPropBox(g, ripple, 0.02, 0.012, 0.42, 0.28, 0.345, 0.2, 0, -0.35, 0);
+      addPropBox(g, ripple, 0.02, 0.012, 0.5, -0.05, 0.345, 1.15, 0, 0.18, 0);
+      addPropSphere(g, stone, 0.11, 0.06, 0.09, 0.55, 0.36, 1.5, 8);
+      addPropSphere(g, stone, 0.08, 0.05, 0.07, -0.58, 0.35, -1.3, 8);
+      for (let s = -1; s <= 1; s += 2) {
+        addPropSphere(g, propMat('#f6e3a7'), 0.035, 0.035, 0.035, s * 0.86, 0.54, -0.6, 8);
+        addPropSphere(g, propMat('#f2a9bb'), 0.045, 0.03, 0.045, s * 0.84, 0.53, 1.6, 8);
+      }
+      return g;
+    }
+
+    function buildRiverCurve() {
+      const g = new THREE.Group();
+      const deep = propMat('#6aaec6');
+      const water = propMat('#9bd8e8');
+      const ripple = propMat('#d8f2fa');
+      const grass = propMat('#b9d8a8');
+      const grassDeep = propMat('#9ec794');
+      addPropBox(g, deep, 1.96, 0.28, 1.96, 0, 0.15, 0);
+      addPropBox(g, water, 1.7, 0.06, 1.7, 0, 0.31, 0);
+      const bank = new THREE.Mesh(new THREE.CylinderGeometry(0.72, 0.72, 0.3, 22, 1, false, Math.PI / 2, Math.PI / 2), grass);
+      bank.position.set(-0.62, 0.3, -0.62);
+      g.add(bank);
+      const bankTop = new THREE.Mesh(new THREE.CylinderGeometry(0.72, 0.72, 0.04, 22, 1, false, Math.PI / 2, Math.PI / 2), grassDeep);
+      bankTop.position.set(-0.62, 0.47, -0.62);
+      g.add(bankTop);
+      const arc = new THREE.Mesh(new THREE.TorusGeometry(0.62, 0.025, 6, 22, Math.PI / 2), ripple);
+      arc.rotation.x = Math.PI / 2;
+      arc.rotation.z = Math.PI / 2;
+      arc.position.set(-0.62, 0.345, -0.62);
+      g.add(arc);
+      for (let i = 0; i < 3; i++) {
+        addPropSphere(g, grass, 0.07, 0.075, 0.07, -1.12 + i * 0.18, 0.5, -1.1 + i * 0.04, 8);
+      }
+      addPropSphere(g, propMat('#f2a9bb'), 0.045, 0.03, 0.045, -0.8, 0.52, -1.16, 8);
+      return g;
+    }
+
+    function buildBridge() {
+      const g = new THREE.Group();
+      const stone = propMat('#cbbda7');
+      const stoneDeep = propMat('#a99a86');
+      const cream = propMat('#f0ede4');
+      const water = propMat('#8fd3e8');
+      const ripple = propMat('#d8f2fa');
+      addPropBox(g, stoneDeep, 1.96, 0.52, 3.96, 0, 0.26, 0);
+      addPropBox(g, water, 1.5, 0.04, 1.4, 0, 0.54, 0);
+      addPropBox(g, stone, 1.9, 0.12, 3.9, 0, 0.66, 0);
+      addPropBox(g, cream, 1.94, 0.04, 3.94, 0, 0.735, 0);
+      addPropBox(g, propMat('#b9a98f'), 1.0, 0.014, 3.5, 0, 0.744, 0);
+      for (let i = 0; i < 7; i++) {
+        addPropBox(g, propMat('#a9987e'), 0.9, 0.008, 0.022, 0, 0.754, -1.55 + i * 0.52);
+      }
+      for (let s = -1; s <= 1; s += 2) {
+        addPropBox(g, stoneDeep, 0.18, 0.48, 0.3, s * 0.88, 0.34, -1.7);
+        addPropBox(g, stoneDeep, 0.18, 0.48, 0.3, s * 0.88, 0.34, 1.7);
+        addPropBox(g, cream, 0.06, 0.34, 3.5, s * 0.94, 0.87, 0);
+        addPropBox(g, cream, 0.07, 0.28, 0.07, s * 0.94, 1.07, -1.6);
+        addPropBox(g, cream, 0.07, 0.28, 0.07, s * 0.94, 1.07, 0);
+        addPropBox(g, cream, 0.07, 0.28, 0.07, s * 0.94, 1.07, 1.6);
+      }
+      for (let i = 0; i < 3; i++) {
+        addPropBox(g, ripple, 0.55, 0.012, 0.02, -0.5 + i * 0.35, 0.57, 0, 0, 0.25, 0);
+      }
+      const arch = new THREE.Mesh(new THREE.TorusGeometry(0.6, 0.04, 6, 18, Math.PI), stoneDeep);
+      arch.rotation.x = Math.PI / 2;
+      arch.position.set(0, 0.52, -1.2);
+      g.add(arch);
+      return g;
+    }
+
+    function buildGrassBank() {
+      const g = new THREE.Group();
+      const grass = propMat('#b9d8a8');
+      const grassDeep = propMat('#9ec794');
+      const cream = propMat('#f6e3a7');
+      const pink = propMat('#f2a9bb');
+      const rock = propMat('#d2cbd3');
+      addPropBox(g, grass, 1.96, 0.66, 3.96, 0, 0.33, 0);
+      addPropBox(g, grassDeep, 1.96, 0.06, 3.96, 0, 0.68, 0);
+      for (let i = 0; i < 10; i++) {
+        const x = (Math.random() * 2 - 1) * 0.8;
+        const z = (Math.random() * 2 - 1) * 1.75;
+        addPropSphere(g, grassDeep, 0.08, 0.16, 0.06, x, 0.78, z, 8);
+      }
+      addPropSphere(g, cream, 0.06, 0.06, 0.06, -0.55, 0.82, -0.9, 8);
+      addPropSphere(g, pink, 0.06, 0.06, 0.06, -0.55, 0.9, -0.9, 8);
+      addPropSphere(g, pink, 0.05, 0.05, 0.05, 0.5, 0.84, 0.7, 8);
+      addPropSphere(g, cream, 0.035, 0.035, 0.035, 0.5, 0.9, 0.7, 8);
+      addPropSphere(g, rock, 0.16, 0.1, 0.14, 0.55, 0.77, -1.3, 8);
+      addPropSphere(g, rock, 0.1, 0.06, 0.1, -0.35, 0.75, 1.35, 8);
+      return g;
+    }
+
+    function buildVehicleBase(opts) {
+      const g = new THREE.Group();
+      const body = propMat(opts.body || '#afcfe8');
+      const deep = propMat(opts.deep || '#91b8d0');
+      const cream = propMat(opts.roof || '#f0ede4');
+      const glass = propMat('#73b3cb');
+      const tire = propMat('#2d3134');
+      const hub = propMat('#f0ede4');
+      const light = propMat('#fff2c2');
+      const tail = propMat('#cf4a3d');
+      const accent = propMat(opts.accent || '#f2a9bb');
+
+      for (let sx = -1; sx <= 1; sx += 2) {
+        for (let sz = -1; sz <= 1; sz += 2) {
+          const z = sz * 1.28;
+          addPropCylinder(g, tire, 0.23, 0.23, 0.15, 16, sx * 0.79, 0.23, z, 0, 0, Math.PI / 2);
+          addPropCylinder(g, hub, 0.095, 0.095, 0.16, 12, sx * 0.79, 0.23, z, 0, 0, Math.PI / 2);
+        }
+      }
+      addPropBox(g, deep, 1.55, 0.14, 3.7, 0, 0.31, 0);
+      addPropBox(g, body, 1.7, 0.46, 3.9, 0, 0.61, 0);
+      addPropBox(g, cream, 1.72, 0.05, 3.94, 0, 0.45, 0);
+      addPropBox(g, body, 1.62, 0.56, 3.2, 0, 1.1, -0.22);
+      addPropBox(g, cream, 1.82, 0.07, 3.56, 0, 1.39, -0.1);
+      addPropBox(g, glass, 1.28, 0.34, 0.03, 0, 1.18, 1.58);
+      addPropBox(g, accent, 0.9, 0.08, 0.02, 0, 0.86, 1.955);
+      for (let i = 0; i < 3; i++) {
+        addPropBox(g, glass, 0.02, 0.3, 0.68, -0.815, 1.16, -1.05 + i * 0.86);
+        addPropBox(g, glass, 0.02, 0.3, 0.68, 0.815, 1.16, -1.05 + i * 0.86);
+        addPropBox(g, cream, 0.025, 0.3, 0.06, -0.817, 1.16, -1.05 + i * 0.86 + 0.37);
+        addPropBox(g, cream, 0.025, 0.3, 0.06, 0.817, 1.16, -1.05 + i * 0.86 + 0.37);
+      }
+      addPropBox(g, glass, 0.9, 0.22, 0.03, 0, 1.15, -1.83);
+      addPropSphere(g, light, 0.11, 0.085, 0.04, -0.54, 0.7, 1.96, 12);
+      addPropSphere(g, light, 0.11, 0.085, 0.04, 0.54, 0.7, 1.96, 12);
+      addPropSphere(g, tail, 0.075, 0.055, 0.035, -0.62, 0.67, -1.96, 10);
+      addPropSphere(g, tail, 0.075, 0.055, 0.035, 0.62, 0.67, -1.96, 10);
+      addPropBox(g, cream, 1.45, 0.12, 0.13, 0, 0.36, 2.0);
+      addPropBox(g, cream, 1.45, 0.12, 0.13, 0, 0.36, -2.0);
+      addPropBox(g, deep, 0.9, 0.1, 0.03, 0, 0.7, 1.975);
+      return { g, body, deep, cream, glass, accent, light, tail };
+    }
+
+    function buildBus() {
+      const g = new THREE.Group();
+      const body = propMat('#f6e3a7');
+      const deep = propMat('#e4cf91');
+      const cream = propMat('#f0ede4');
+      const glass = propMat('#73b3cb');
+      const tire = propMat('#2d3134');
+      const hub = propMat('#f0ede4');
+      const mint = propMat('#b3dccb');
+      const coral = propMat('#f2a9bb');
+      for (let sx = -1; sx <= 1; sx += 2) {
+        for (let sz = -1; sz <= 1; sz += 2) {
+          const z = sz * 1.55;
+          addPropCylinder(g, tire, 0.23, 0.23, 0.15, 16, sx * 0.79, 0.23, z, 0, 0, Math.PI / 2);
+          addPropCylinder(g, hub, 0.095, 0.095, 0.16, 12, sx * 0.79, 0.23, z, 0, 0, Math.PI / 2);
+        }
+      }
+      addPropBox(g, deep, 1.55, 0.14, 4.7, 0, 0.31, 0);
+      addPropBox(g, body, 1.7, 0.46, 4.9, 0, 0.61, 0);
+      addPropBox(g, cream, 1.72, 0.05, 4.94, 0, 0.45, 0);
+      addPropBox(g, body, 1.62, 0.6, 4.2, 0, 1.12, -0.2);
+      addPropBox(g, cream, 1.84, 0.07, 4.6, 0, 1.43, -0.1);
+      addPropBox(g, mint, 1.74, 0.09, 4.92, 0, 0.82, 0);
+      addPropBox(g, glass, 1.28, 0.38, 0.03, 0, 1.19, 2.16);
+      addPropBox(g, coral, 0.5, 0.16, 0.03, 0, 1.32, 2.18);
+      addPropBox(g, cream, 0.65, 0.08, 0.04, 0, 1.33, 2.2);
+      for (let i = 0; i < 5; i++) {
+        const z = -1.65 + i * 0.78;
+        addPropBox(g, glass, 0.02, 0.34, 0.62, -0.815, 1.18, z);
+        addPropBox(g, glass, 0.02, 0.34, 0.62, 0.815, 1.18, z);
+        addPropBox(g, cream, 0.025, 0.34, 0.055, -0.817, 1.18, z + 0.35);
+        addPropBox(g, cream, 0.025, 0.34, 0.055, 0.817, 1.18, z + 0.35);
+      }
+      addPropBox(g, cream, 0.34, 0.7, 0.03, 0.84, 1.08, 1.35);
+      addPropBox(g, glass, 0.24, 0.46, 0.025, 0.85, 1.12, 1.36);
+      addPropBox(g, glass, 0.9, 0.25, 0.03, 0, 1.16, -2.31);
+      addPropSphere(g, propMat('#fff2c2'), 0.11, 0.085, 0.04, -0.54, 0.7, 2.48, 12);
+      addPropSphere(g, propMat('#fff2c2'), 0.11, 0.085, 0.04, 0.54, 0.7, 2.48, 12);
+      addPropSphere(g, propMat('#cf4a3d'), 0.075, 0.055, 0.035, -0.62, 0.67, -2.48, 10);
+      addPropSphere(g, propMat('#cf4a3d'), 0.075, 0.055, 0.035, 0.62, 0.67, -2.48, 10);
+      addPropBox(g, cream, 1.45, 0.12, 0.13, 0, 0.36, 2.51);
+      addPropBox(g, cream, 1.45, 0.12, 0.13, 0, 0.36, -2.51);
+      return g;
+    }
+
+    function buildFireTruck() {
+      const v = buildVehicleBase({ body: '#e8a1b0', deep: '#cf8798', roof: '#f0ede4', accent: '#dcc692' });
+      const g = v.g;
+      addPropBox(g, propMat('#dcc692'), 0.9, 0.08, 0.16, 0, 1.42, 1.35);
+      addPropBox(g, propMat('#afcfe8'), 0.28, 0.09, 0.12, -0.46, 1.43, 1.35);
+      addPropBox(g, propMat('#f2a9bb'), 0.28, 0.09, 0.12, 0.46, 1.43, 1.35);
+      addPropBox(g, v.cream, 0.5, 0.06, 3.3, 0, 0.83, -0.1);
+      for (let s = -1; s <= 1; s += 2) {
+        addPropBox(g, propMat('#dcc692'), 0.035, 0.03, 2.2, s * 0.9, 1.1, -1.0);
+        for (let i = 0; i < 5; i++) {
+          addPropBox(g, propMat('#dcc692'), 0.035, 0.03, 0.06, s * 0.9, 1.0, -1.8 + i * 0.45);
+        }
+      }
+      addPropCylinder(g, propMat('#e8a1b0'), 0.16, 0.16, 0.07, 14, -0.72, 0.88, -0.6, Math.PI / 2, 0, 0);
+      addPropCylinder(g, propMat('#c6d7e2'), 0.045, 0.07, 0.32, 10, 0, 1.52, 1.35);
+      addPropSphere(g, propMat('#afcfe8'), 0.07, 0.06, 0.07, 0, 1.7, 1.35, 10);
+      addPropCylinder(g, propMat('#f6e3a7'), 0.17, 0.17, 0.05, 14, 0.66, 0.96, -0.7, 0, 0, Math.PI / 2);
+      return g;
+    }
+
+    function buildAmbulance() {
+      const v = buildVehicleBase({ body: '#f8f1e6', deep: '#e1d4c3', roof: '#f8f1e6', accent: '#b3dccb' });
+      const g = v.g;
+      addPropBox(g, propMat('#f2a9bb'), 0.44, 0.3, 0.02, 0, 0.9, 1.97);
+      addPropBox(g, propMat('#f8f1e6'), 0.08, 0.18, 0.02, 0, 0.9, 1.985);
+      addPropBox(g, propMat('#b3dccb'), 0.9, 0.06, 3.0, 0, 0.84, -0.15);
+      addPropBox(g, propMat('#f2a9bb'), 0.55, 0.35, 0.02, 0, 0.97, -1.96);
+      addPropBox(g, propMat('#f8f1e6'), 0.1, 0.2, 0.015, 0, 0.97, -1.975);
+      addPropBox(g, propMat('#afcfe8'), 0.7, 0.08, 0.16, 0, 1.43, 1.35);
+      addPropBox(g, propMat('#f2a9bb'), 0.62, 0.035, 0.62, 0, 1.465, -0.6);
+      addPropBox(g, propMat('#f8f1e6'), 0.4, 0.04, 0.12, 0, 1.487, -0.6);
+      addPropBox(g, propMat('#f8f1e6'), 0.12, 0.04, 0.4, 0, 1.487, -0.6);
+      return g;
+    }
+
+    function buildPoliceCar() {
+      const v = buildVehicleBase({ body: '#9db1cf', deep: '#8097b7', roof: '#f8f1e6', accent: '#dcc692' });
+      const g = v.g;
+      addPropBox(g, v.cream, 0.5, 0.36, 0.02, 0, 0.8, 1.965);
+      addPropBox(g, v.cream, 0.5, 0.36, 0.02, 0, 0.8, -1.965);
+      addPropBox(g, propMat('#dcc692'), 0.22, 0.24, 0.02, -0.45, 0.95, 1.975);
+      addPropBox(g, propMat('#f2a9bb'), 0.38, 0.09, 0.16, -0.25, 1.43, 1.3);
+      addPropBox(g, propMat('#afcfe8'), 0.38, 0.09, 0.16, 0.25, 1.43, 1.3);
+      return g;
+    }
+
+    function buildTruck() {
+      const v = buildVehicleBase({ body: '#b3dccb', deep: '#97c6b5', roof: '#f0ede4', accent: '#f6e3a7' });
+      const g = v.g;
+      addPropBox(g, propMat('#f0ede4'), 1.35, 0.55, 2.2, 0, 1.12, -0.8);
+      addPropBox(g, propMat('#d2cbd3'), 0.08, 0.5, 0.08, -0.55, 0.8, 0.4);
+      addPropBox(g, propMat('#d2cbd3'), 0.08, 0.5, 0.08, 0.55, 0.8, 0.4);
+      addPropBox(g, v.cream, 1.55, 0.06, 2.3, 0, 1.41, -0.8);
+      addPropBox(g, propMat('#f6e3a7'), 0.9, 0.08, 0.1, 0, 0.84, 1.96);
+      return g;
+    }
+
+    function buildIceCream() {
+      const v = buildVehicleBase({ body: '#f8f1e6', deep: '#e8d8c8', roof: '#f8f1e6', accent: '#f2a9bb' });
+      const g = v.g;
+      addPropBox(g, propMat('#f2a9bb'), 0.9, 0.08, 3.1, 0, 0.84, -0.1);
+      addPropBox(g, propMat('#b3dccb'), 0.7, 0.32, 0.03, 0, 1.0, 1.965);
+      addPropBox(g, propMat('#f8f1e6'), 0.52, 0.22, 0.03, 0, 1.0, 1.98);
+      addPropSphere(g, propMat('#f6e3a7'), 0.14, 0.14, 0.14, 0, 1.1, 1.84, 14);
+      addPropSphere(g, propMat('#f2a9bb'), 0.14, 0.14, 0.14, 0, 1.23, 1.84, 14);
+      addPropCylinder(g, propMat('#d4b49b'), 0.025, 0.13, 0.26, 10, 0, 0.9, 1.84);
+      addPropBox(g, propMat('#f2a9bb'), 0.7, 0.08, 0.16, 0, 1.43, 1.35);
+      addPropBox(g, propMat('#f8f1e6'), 0.7, 0.24, 0.03, 0.83, 1.1, 0.6);
+      addPropBox(g, propMat('#b3dccb'), 0.66, 0.19, 0.02, 0.84, 1.1, 0.61);
       return g;
     }
 
@@ -3514,6 +3923,16 @@
       road_curve: buildRoadCurve,
       road_cross: buildRoadCross,
       rail_track: buildRailTrack,
+      river_straight: buildRiverStraight,
+      river_curve: buildRiverCurve,
+      bridge: buildBridge,
+      grass_bank: buildGrassBank,
+      bus: buildBus,
+      fire_truck: buildFireTruck,
+      ambulance: buildAmbulance,
+      police_car: buildPoliceCar,
+      truck: buildTruck,
+      ice_cream: buildIceCream,
       train: buildTrain,
       train_car: buildTrainCar,
       train_freight: buildTrainFreight,
@@ -3580,6 +3999,42 @@
     Object.assign(CHAR_ACC, ANIMAL_ACC);
 
     const VEHICLE_LIGHT_ANCHORS = {
+      bus: [
+        { x: -0.54, y: 0.7, z: 2.5, s: 0.52, c: 0xffdc93 },
+        { x: 0.54, y: 0.7, z: 2.5, s: 0.52, c: 0xffdc93 },
+        { x: -0.62, y: 0.67, z: -2.5, s: 0.32, c: 0xf08b91 },
+        { x: 0.62, y: 0.67, z: -2.5, s: 0.32, c: 0xf08b91 }
+      ],
+      fire_truck: [
+        { x: -0.54, y: 0.7, z: 1.98, s: 0.52, c: 0xffdc93 },
+        { x: 0.54, y: 0.7, z: 1.98, s: 0.52, c: 0xffdc93 },
+        { x: -0.62, y: 0.67, z: -1.98, s: 0.32, c: 0xf08b91 },
+        { x: 0.62, y: 0.67, z: -1.98, s: 0.32, c: 0xf08b91 }
+      ],
+      ambulance: [
+        { x: -0.54, y: 0.7, z: 1.98, s: 0.52, c: 0xffdc93 },
+        { x: 0.54, y: 0.7, z: 1.98, s: 0.52, c: 0xffdc93 },
+        { x: -0.62, y: 0.67, z: -1.98, s: 0.32, c: 0xf08b91 },
+        { x: 0.62, y: 0.67, z: -1.98, s: 0.32, c: 0xf08b91 }
+      ],
+      police_car: [
+        { x: -0.54, y: 0.7, z: 1.98, s: 0.52, c: 0xffdc93 },
+        { x: 0.54, y: 0.7, z: 1.98, s: 0.52, c: 0xffdc93 },
+        { x: -0.62, y: 0.67, z: -1.98, s: 0.32, c: 0xf08b91 },
+        { x: 0.62, y: 0.67, z: -1.98, s: 0.32, c: 0xf08b91 }
+      ],
+      truck: [
+        { x: -0.54, y: 0.7, z: 1.98, s: 0.52, c: 0xffdc93 },
+        { x: 0.54, y: 0.7, z: 1.98, s: 0.52, c: 0xffdc93 },
+        { x: -0.62, y: 0.67, z: -1.98, s: 0.32, c: 0xf08b91 },
+        { x: 0.62, y: 0.67, z: -1.98, s: 0.32, c: 0xf08b91 }
+      ],
+      ice_cream: [
+        { x: -0.54, y: 0.7, z: 1.98, s: 0.52, c: 0xffdc93 },
+        { x: 0.54, y: 0.7, z: 1.98, s: 0.52, c: 0xffdc93 },
+        { x: -0.62, y: 0.67, z: -1.98, s: 0.32, c: 0xf08b91 },
+        { x: 0.62, y: 0.67, z: -1.98, s: 0.32, c: 0xf08b91 }
+      ],
       car: [
         { x: -0.52, y: 0.76, z: 1.47, s: 0.52, c: 0xffdc93 },
         { x: 0.52, y: 0.76, z: 1.47, s: 0.52, c: 0xffdc93 },
@@ -3837,7 +4292,7 @@
       if (!def) return;
       if ((def.cat === 'person' || def.cat === 'animal' || def.cat === 'char') && CHAR_ACC[def.id]) attachCharacterAccessories(group, def);
       if (rec.propType === 'window' || rec.propType === 'door') attachNightGlow(group, rec.propType);
-      if (def.cat === 'traffic' && VEHICLE_LIGHT_ANCHORS[rec.propType]) attachVehicleGlow(group, def);
+      if ((def.cat === 'vehicle' || def.cat === 'traffic') && VEHICLE_LIGHT_ANCHORS[rec.propType]) attachVehicleGlow(group, def);
       syncAttachmentVisibility(group);
     }
 
@@ -3860,6 +4315,10 @@
         }
       });
       attachEnvironmentProps(group, rec);
+      if (def.cat === 'person' || def.cat === 'animal' || def.cat === 'char') {
+        group.userData.eyes = group.getObjectByName('eyes') || null;
+        group.userData.idlePhase = (rec.id * 1.73 + rec.gx * 0.07 + rec.gz * 0.11) % (Math.PI * 2);
+      }
       return group;
     }
 
@@ -3907,7 +4366,8 @@
 
     function isPropCategory(cat) {
       return cat === 'person' || cat === 'animal' || cat === 'char' ||
-        cat === 'furniture' || cat === 'traffic' || cat === 'build';
+        cat === 'road' || cat === 'vehicle' || cat === 'furniture' ||
+        cat === 'traffic' || cat === 'build';
     }
 
     function currentPiece() {
@@ -4867,6 +5327,8 @@
       build: 'column',
       person: 'minifig',
       animal: 'cat',
+      road: 'road_straight',
+      vehicle: 'car',
       char: 'minifig',
       furniture: 'chair',
       traffic: 'road_straight'
@@ -4971,6 +5433,16 @@
         panda: '<circle cx="6" cy="6" r="2.5"/><circle cx="18" cy="6" r="2.5"/><path d="M5 14a7 7 0 0 1 14 0v2a7 7 0 0 1-14 0v-2Z"/><path d="M8 13c.8-1 2.4-1 3.2 0M12.8 13c.8-1 2.4-1 3.2 0"/><path d="M12 16v1"/>',
         fox: '<path d="m3 3 4 6M21 3l-4 6"/><path d="M5 14a7 7 0 0 1 14 0v2a7 7 0 0 1-14 0v-2Z"/><path d="M8 13h.01M16 13h.01M12 15v2M9 18h6"/>',
         pig: '<path d="M5 11c0-4 3-7 7-7s7 3 7 7v5H5v-5Z"/><path d="M5 11 3 8M19 11l2-3"/><ellipse cx="12" cy="15" rx="4" ry="2.5"/><path d="M10 15h.01M14 15h.01M8 11h.01M16 11h.01"/>',
+        river_straight: '<path d="M3 8c3-2 5 2 8 0s5-2 8 0M3 13c3-2 5 2 8 0s5-2 8 0M3 18c3-2 5 2 8 0s5-2 8 0"/>',
+        river_curve: '<path d="M4 20V9c0-3 2-5 5-5h11M8 20v-9c0-1.5 1-2.5 2.5-2.5H20"/>',
+        bridge: '<path d="M3 18h18M5 18v-5h14v5M5 13c0-5 3-8 7-8s7 3 7 8M9 18v-5M15 18v-5"/>',
+        grass_bank: '<path d="M3 20h18M6 20v-5M18 20v-5M6 15c-1-5 2-9 6-9s7 4 6 9M9 12c.5-2 1.5-3 3-3s2.5 1 3 3"/>',
+        bus: '<rect x="4" y="3" width="16" height="15" rx="2"/><path d="M4 10h16M8 18v3M16 18v3M7 13h.01M17 13h.01"/>',
+        fire_truck: '<path d="M3 16h18M5 16V8h9v8M14 11h3l3 3v2M7 19v2M17 19v2M9 5c1-2 3-2 4 0-1 2-3 2-4 0Z"/>',
+        ambulance: '<path d="M3 16h18M5 16V8h14v8M10 10h4M12 8v4M7 19v2M17 19v2"/>',
+        police_car: '<path d="M3 15h18M5 15l2-5h10l2 5M8 19v2M16 19v2M9 8h6M8 6h.01M16 6h.01"/>',
+        truck: '<path d="M3 16h18M5 16V7h8v9M13 10h4l3 3v3M8 19v2M17 19v2M8 7v9"/>',
+        ice_cream: '<path d="M8 11 12 3l4 8c0 2-1.8 3.5-4 3.5S8 13 8 11Z"/><path d="M12 15v6M9 21h6M10 4h.01"/>',
         column: '<path d="M9 3h6M9 21h6M10 3v18M14 3v18M8 6h8M8 18h8"/>',
         fence: '<path d="M3 21h18M5 21V9l2-2 2 2v12M11 21V9l2-2 2 2v12M17 21V9l2-2 2 2v12M3 14h18"/>',
         door: '<path d="M5 21V4h14v17M3 21h18"/><path d="M9 4v17"/><circle cx="15" cy="12" r=".9" fill="currentColor" stroke="none"/>',
@@ -5485,6 +5957,9 @@
         if (savedCategory === 'char') {
           const savedProp = PROP_MAP[data.propType];
           savedCategory = savedProp && savedProp.cat === 'animal' ? 'animal' : 'person';
+        } else if (savedCategory === 'traffic') {
+          const savedProp = PROP_MAP[data.propType];
+          savedCategory = savedProp && savedProp.cat === 'road' ? 'road' : 'vehicle';
         }
         if (CATEGORIES.some(function (c) { return c.id === savedCategory; })) {
           state.category = savedCategory;
@@ -5562,9 +6037,34 @@
       spawns = alive;
     }
 
+    function updateCharacterIdle(now) {
+      for (let i = 0; i < state.props.length; i++) {
+        const p = state.props[i];
+        const def = PROP_MAP[p.propType];
+        if (!def || (def.cat !== 'person' && def.cat !== 'animal' && def.cat !== 'char')) continue;
+        const g = state.meshById.get(p.id);
+        if (!g) continue;
+        const phase = g.userData.idlePhase || 0;
+        const base = def.scale || 1;
+        const breathe = 1 + Math.sin(now * 0.0014 + phase) * 0.008;
+        g.scale.setScalar(base * breathe);
+        g.rotation.y = p.rot * Math.PI / 2 + Math.sin(now * 0.0009 + phase) * 0.018;
+        g.position.y = p.layer * LAYER + Math.sin(now * 0.0017 + phase * 1.3) * 0.006;
+        const eyes = g.userData.eyes;
+        if (eyes) {
+          const t = (now * 0.001 + phase * 2.7) % 4.8;
+          let k = 1;
+          if (t < 0.07) k = 0.14;
+          else if (t < 0.14) k = 0.14 + (t - 0.07) * 12.3;
+          eyes.scale.y = k;
+        }
+      }
+    }
+
     function frame(now) {
       requestAnimationFrame(frame);
       animateSpawns(now);
+      updateCharacterIdle(now);
       updateWeather(now);
 
       if (blueprintMesh && blueprintMesh.visible) {
