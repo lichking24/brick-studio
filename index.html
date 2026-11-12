@@ -3535,6 +3535,53 @@
       metalness: 0.02
     });
 
+    function makeCrackTexture() {
+      const c = document.createElement('canvas');
+      c.width = 128;
+      c.height = 128;
+      const ctx = c.getContext('2d');
+      ctx.clearRect(0, 0, 128, 128);
+      ctx.strokeStyle = 'rgba(56, 46, 52, .92)';
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      const strokes = [
+        [[18, 8], [42, 34], [34, 55], [52, 78], [44, 104], [62, 122]],
+        [[42, 34], [66, 28], [82, 40]],
+        [[34, 55], [18, 70], [24, 89]],
+        [[52, 78], [76, 70], [92, 84]],
+        [[44, 104], [70, 112], [86, 102]]
+      ];
+      for (let i = 0; i < strokes.length; i++) {
+        ctx.lineWidth = i === 0 ? 4.5 : 2.6;
+        ctx.beginPath();
+        ctx.moveTo(strokes[i][0][0], strokes[i][0][1]);
+        for (let j = 1; j < strokes[i].length; j++) {
+          ctx.lineTo(strokes[i][j][0], strokes[i][j][1]);
+        }
+        ctx.stroke();
+      }
+      const tex = new THREE.CanvasTexture(c);
+      if ('encoding' in tex) tex.encoding = THREE.sRGBEncoding;
+      tex.needsUpdate = true;
+      return tex;
+    }
+    const crackTexture = makeCrackTexture();
+    const crackPlaneGeo = new THREE.PlaneGeometry(1, 1);
+    const crackDecalMat = new THREE.MeshBasicMaterial({
+      map: crackTexture,
+      transparent: true,
+      opacity: 0.82,
+      depthWrite: false,
+      side: THREE.DoubleSide
+    });
+    const smokeSpriteMat = new THREE.SpriteMaterial({
+      map: glowTexture,
+      color: 0x8a8089,
+      transparent: true,
+      opacity: 0.38,
+      depthWrite: false
+    });
+
     function spawnFxParticles(x, y, z, colors, count, power, opts) {
       opts = opts || {};
       const gravity = opts.gravity == null ? 9.8 : opts.gravity;
@@ -3838,7 +3885,7 @@
         for (let i = 0; i < 5; i++) {
           const t = i / 4;
           sidePoints.push(new THREE.Vector3(
-            halfW - 0.08,
+            Math.min(halfW - 0.12, 0.86),
             0.54 + t * 0.72,
             -halfD * 0.35 + halfD * 0.82 * t + (i % 2 === 0 ? -0.11 : 0.11)
           ));
@@ -3852,6 +3899,40 @@
       }
 
       if (rec.kind === 'brick') {
+        const decal = new THREE.Mesh(crackPlaneGeo, crackDecalMat);
+        decal.rotation.x = -Math.PI / 2;
+        decal.position.set(0, topY + 0.012, 0);
+        decal.scale.set(halfW * 1.5, halfD * 1.5, 1);
+        object3d.add(decal);
+      } else {
+        if (def && def.cat === 'vehicle') {
+          const topDecal = new THREE.Mesh(crackPlaneGeo, crackDecalMat);
+          topDecal.rotation.x = -Math.PI / 2;
+          topDecal.position.set(0, 1.415, 0);
+          topDecal.scale.set(halfW * 1.25, halfD * 1.25, 1);
+          object3d.add(topDecal);
+          for (let i = 0; i < 3; i++) {
+            const puff = new THREE.Sprite(smokeSpriteMat);
+            puff.position.set(
+              (Math.random() - 0.5) * 0.8,
+              1.55 + Math.random() * 0.5,
+              (Math.random() - 0.5) * 0.8
+            );
+            const puffScale = 0.55 + Math.random() * 0.5;
+            puff.scale.set(puffScale, puffScale, 1);
+            object3d.add(puff);
+          }
+        }
+        for (let s = -1; s <= 1; s += 2) {
+          const sideDecal = new THREE.Mesh(crackPlaneGeo, crackDecalMat);
+          sideDecal.rotation.y = s * Math.PI / 2;
+          sideDecal.position.set(s * Math.min(halfW - 0.12, 0.86), 0.84, 0);
+          sideDecal.scale.set(halfD * 1.35, 0.72, 1);
+          object3d.add(sideDecal);
+        }
+      }
+
+      if (rec.kind === 'brick') {
         if (object3d.material) {
           object3d.material = object3d.material.clone();
           object3d.material.color.multiplyScalar(0.82);
@@ -3859,8 +3940,8 @@
       } else if (def) {
         if (object3d.userData.vehicleGlow) object3d.userData.vehicleGlow.visible = false;
         if (def.cat === 'vehicle') {
-          object3d.rotation.z += (rec.damageDir || 1) * 0.065;
-          object3d.rotation.x += 0.025;
+          object3d.rotation.z += (rec.damageDir || 1) * 0.1;
+          object3d.rotation.x += 0.035;
           object3d.position.y = rec.layer * LAYER + 0.01;
         } else {
           object3d.rotation.z += (rec.damageDir || 1) * 0.05;
