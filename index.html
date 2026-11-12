@@ -1016,7 +1016,8 @@
         <button class="cat-tab" data-cat="special" role="tab">特殊</button>
         <button class="cat-tab" data-cat="large" role="tab">大件</button>
         <button class="cat-tab" data-cat="build" role="tab">建筑</button>
-        <button class="cat-tab" data-cat="char" role="tab">角色</button>
+        <button class="cat-tab" data-cat="person" role="tab">人物</button>
+        <button class="cat-tab" data-cat="animal" role="tab">动物</button>
         <button class="cat-tab" data-cat="traffic" role="tab">交通</button>
       </div>
       <div class="dock__row">
@@ -1098,7 +1099,8 @@
       { id: 'special', label: '特殊' },
       { id: 'large', label: '大件' },
       { id: 'build', label: '建筑' },
-      { id: 'char', label: '角色' },
+      { id: 'person', label: '人物' },
+      { id: 'animal', label: '动物' },
       { id: 'traffic', label: '交通' }
     ];
 
@@ -1126,11 +1128,23 @@
     BRICK_DEFS.forEach(function (t) { TYPE_MAP[t.id] = t; });
 
     const PROP_DEFS = [
-      { id: 'minifig', name: '小人', cat: 'char', w: 1, d: 2, height: 1.8, scale: 1.4 },
-      { id: 'girl', name: '小女孩', cat: 'char', w: 1, d: 2, height: 1.9, scale: 1.4 },
-      { id: 'cat', name: '猫咪', cat: 'char', w: 1, d: 2, height: 1.48, scale: 1.5 },
-      { id: 'dog', name: '小狗', cat: 'char', w: 1, d: 2, height: 1.62, scale: 1.5 },
-      { id: 'duck', name: '小鸭', cat: 'char', w: 1, d: 2, height: 1.24, scale: 1.5 },
+      { id: 'minifig', name: '小人', cat: 'person', w: 1, d: 2, height: 2.0, scale: 1.4 },
+      { id: 'girl', name: '小女孩', cat: 'person', w: 1, d: 2, height: 2.0, scale: 1.4 },
+      { id: 'firefighter', name: '消防员', cat: 'person', w: 1, d: 2, height: 2.1, scale: 1.4 },
+      { id: 'doctor', name: '医生', cat: 'person', w: 1, d: 2, height: 2.0, scale: 1.4 },
+      { id: 'nurse', name: '护士', cat: 'person', w: 1, d: 2, height: 2.0, scale: 1.4 },
+      { id: 'chef', name: '厨师', cat: 'person', w: 1, d: 2, height: 2.2, scale: 1.4 },
+      { id: 'police', name: '警察', cat: 'person', w: 1, d: 2, height: 2.0, scale: 1.4 },
+      { id: 'postman', name: '邮差', cat: 'person', w: 1, d: 2, height: 2.0, scale: 1.4 },
+      { id: 'gardener', name: '园丁', cat: 'person', w: 1, d: 2, height: 2.1, scale: 1.4 },
+      { id: 'astronaut', name: '宇航员', cat: 'person', w: 1, d: 2, height: 2.2, scale: 1.4 },
+      { id: 'cat', name: '猫咪', cat: 'animal', w: 1, d: 2, height: 1.48, scale: 1.5 },
+      { id: 'dog', name: '小狗', cat: 'animal', w: 1, d: 2, height: 1.62, scale: 1.5 },
+      { id: 'duck', name: '小鸭', cat: 'animal', w: 1, d: 2, height: 1.24, scale: 1.5 },
+      { id: 'rabbit', name: '兔子', cat: 'animal', w: 1, d: 2, height: 1.75, scale: 1.5 },
+      { id: 'panda', name: '熊猫', cat: 'animal', w: 1, d: 2, height: 1.55, scale: 1.5 },
+      { id: 'fox', name: '狐狸', cat: 'animal', w: 1, d: 2, height: 1.6, scale: 1.5 },
+      { id: 'pig', name: '小猪', cat: 'animal', w: 1, d: 2, height: 1.4, scale: 1.5 },
       { id: 'chair', name: '椅子', cat: 'furniture', w: 1, d: 1, height: 0.95 },
       { id: 'table', name: '桌子', cat: 'furniture', w: 2, d: 2, height: 0.82 },
       { id: 'lamp', name: '台灯', cat: 'furniture', w: 1, d: 1, height: 1.16 },
@@ -1354,6 +1368,10 @@
     fillLight.position.set(-30, 18, -26);
     scene.add(fillLight);
 
+    const faceLight = new THREE.DirectionalLight(0xfff8ee, 0.3);
+    faceLight.position.set(-4, 16, 38);
+    scene.add(faceLight);
+
 
     // ---------------------------------------------------------------- environment: time + weather
     const WEATHER_MODES = ['sunny', 'rain', 'snow'];
@@ -1365,22 +1383,22 @@
 
     const TIME_LIGHT = {
       morning: {
-        key: 0.82, hemi: 0.5, fill: 0.2,
+        key: 0.82, hemi: 0.5, fill: 0.2, face: 0.24,
         keyColor: 0xffdcc0, hemiColor: 0xfff0e8,
         groundColor: 0xd8c6c8, fillColor: 0xcfdff2
       },
       day: {
-        key: 0.95, hemi: 0.55, fill: 0.22,
+        key: 0.95, hemi: 0.55, fill: 0.22, face: 0.3,
         keyColor: 0xfff2dd, hemiColor: 0xffffff,
         groundColor: 0xb9aeb6, fillColor: 0xbcd7ff
       },
       dusk: {
-        key: 0.7, hemi: 0.42, fill: 0.18,
+        key: 0.7, hemi: 0.42, fill: 0.18, face: 0.18,
         keyColor: 0xffc197, hemiColor: 0xf6d7df,
         groundColor: 0xcfb0c2, fillColor: 0xc9b6e0
       },
       night: {
-        key: 0.34, hemi: 0.42, fill: 0.1,
+        key: 0.34, hemi: 0.42, fill: 0.1, face: 0.08,
         keyColor: 0xa9c2ee, hemiColor: 0x8fa2d8,
         groundColor: 0x4b547d, fillColor: 0x8ea4d8
       }
@@ -1620,6 +1638,7 @@
         key: t.key * w.key,
         hemi: t.hemi * w.hemi,
         fill: t.fill * w.fill,
+        face: t.face * w.key,
         keyColor: new THREE.Color(t.keyColor).lerp(w.tint, 0.3),
         hemiColor: new THREE.Color(t.hemiColor).lerp(w.tint, 0.24),
         groundColor: new THREE.Color(t.groundColor),
@@ -1661,6 +1680,9 @@
         acc.umbrella.visible = state.weather === 'rain';
         acc.scarf.visible = state.weather === 'snow';
         acc.lantern.visible = isNightTime() || isDuskTime();
+        if (acc.rainCoat) acc.rainCoat.visible = state.weather === 'rain';
+        if (acc.snowCoat) acc.snowCoat.visible = state.weather === 'snow';
+        if (acc.beanie) acc.beanie.visible = state.weather === 'snow';
       }
       if (group.userData.nightGlow) {
         const glow = group.userData.nightGlow;
@@ -1778,6 +1800,7 @@
         keyLight.color.lerp(t.keyColor, 0.055);
         fillLight.intensity += (t.fill - fillLight.intensity) * 0.055;
         fillLight.color.lerp(t.fillColor, 0.055);
+        faceLight.intensity += (t.face - faceLight.intensity) * 0.055;
       }
 
       if (puddleGroup.visible) {
@@ -3018,12 +3041,471 @@
       return g;
     }
 
+
+    function addPersonFace(g, opts) {
+      const eyeWhite = propMat('#fff8ec');
+      const shine = propMat('#ffffff');
+      const dark = propMat('#5b525d');
+      const blush = propMat('#f0b7b5');
+      const skin = propMat(opts.skin);
+      addPropSphere(g, eyeWhite, 0.043, 0.052, 0.018, -0.086, 1.2, 0.255, 12);
+      addPropSphere(g, eyeWhite, 0.043, 0.052, 0.018, 0.086, 1.2, 0.255, 12);
+      addPropSphere(g, dark, 0.021, 0.029, 0.014, -0.086, 1.198, 0.272, 10);
+      addPropSphere(g, dark, 0.021, 0.029, 0.014, 0.086, 1.198, 0.272, 10);
+      addPropSphere(g, shine, 0.011, 0.014, 0.007, -0.078, 1.212, 0.284, 8);
+      addPropSphere(g, shine, 0.011, 0.014, 0.007, 0.094, 1.212, 0.284, 8);
+      addPropBox(g, dark, 0.055, 0.013, 0.012, -0.086, 1.255, 0.251, 0, 0, 0.13);
+      addPropBox(g, dark, 0.055, 0.013, 0.012, 0.086, 1.255, 0.251, 0, 0, -0.13);
+      addPropSphere(g, skin, 0.03, 0.024, 0.02, 0, 1.135, 0.27, 10);
+      addPropSphere(g, blush, 0.045, 0.02, 0.014, -0.16, 1.12, 0.248, 10);
+      addPropSphere(g, blush, 0.045, 0.02, 0.014, 0.16, 1.12, 0.248, 10);
+      const smile = new THREE.Mesh(new THREE.TorusGeometry(0.055, 0.009, 6, 16, Math.PI), dark);
+      smile.position.set(0, 1.11, 0.263);
+      smile.rotation.z = Math.PI;
+      smile.castShadow = false;
+      g.add(smile);
+      if (opts.lashes) {
+        addPropBox(g, dark, 0.045, 0.009, 0.01, -0.124, 1.19, 0.263, 0, 0, -0.5);
+        addPropBox(g, dark, 0.045, 0.009, 0.01, 0.124, 1.19, 0.263, 0, 0, 0.5);
+      }
+    }
+
+    function addPersonHair(g, style, hair) {
+      addPropSphere(g, hair, 0.285, 0.17, 0.28, 0, 1.29, -0.02, 20);
+      addPropSphere(g, hair, 0.12, 0.06, 0.06, -0.035, 1.305, 0.205, 14);
+      addPropSphere(g, hair, 0.08, 0.055, 0.055, 0.075, 1.3, 0.21, 12);
+      if (style === 'bob') {
+        addPropSphere(g, hair, 0.09, 0.17, 0.11, -0.245, 1.13, 0.015, 14);
+        addPropSphere(g, hair, 0.09, 0.17, 0.11, 0.245, 1.13, 0.015, 14);
+        addPropSphere(g, hair, 0.23, 0.2, 0.11, 0, 1.14, -0.18, 16);
+        addPropSphere(g, hair, 0.21, 0.06, 0.055, 0, 1.31, 0.21, 14);
+      } else if (style === 'bun') {
+        addPropSphere(g, hair, 0.09, 0.16, 0.11, -0.24, 1.14, 0.015, 14);
+        addPropSphere(g, hair, 0.09, 0.16, 0.11, 0.24, 1.14, 0.015, 14);
+        addPropSphere(g, hair, 0.11, 0.11, 0.11, 0, 1.4, -0.18, 16);
+        addPropSphere(g, hair, 0.06, 0.04, 0.06, 0, 1.46, -0.17, 12);
+      } else if (style === 'curly') {
+        addPropSphere(g, hair, 0.1, 0.09, 0.09, -0.12, 1.37, 0.08, 12);
+        addPropSphere(g, hair, 0.1, 0.09, 0.09, 0.12, 1.37, 0.08, 12);
+        addPropSphere(g, hair, 0.08, 0.08, 0.08, 0, 1.42, 0.03, 12);
+      }
+    }
+
+    function buildPersonBase(opts) {
+      const g = new THREE.Group();
+      const skin = propMat(opts.skin || '#f5d997');
+      const hair = propMat(opts.hair || '#6f574f');
+      const shirt = propMat(opts.shirt || '#b3dccb');
+      const pants = propMat(opts.pants || '#9db1cf');
+      const shoe = propMat(opts.shoes || '#6e6571');
+      const accent = propMat(opts.accent || '#f8f1e6');
+      const blush = propMat('#f0b7b5');
+
+      if (opts.dress) {
+        addPropCylinder(g, skin, 0.052, 0.057, 0.2, 10, -0.11, 0.2, 0);
+        addPropCylinder(g, skin, 0.052, 0.057, 0.2, 10, 0.11, 0.2, 0);
+        addPropCylinder(g, accent, 0.06, 0.062, 0.075, 10, -0.11, 0.1, 0);
+        addPropCylinder(g, accent, 0.06, 0.062, 0.075, 10, 0.11, 0.1, 0);
+        addPropBox(g, shoe, 0.14, 0.07, 0.22, -0.11, 0.035, 0.03);
+        addPropBox(g, shoe, 0.14, 0.07, 0.22, 0.11, 0.035, 0.03);
+        addPropCylinder(g, shirt, 0.18, 0.3, 0.33, 20, 0, 0.43, 0);
+        addPropCylinder(g, accent, 0.305, 0.31, 0.035, 20, 0, 0.27, 0);
+        addPropSphere(g, shirt, 0.29, 0.31, 0.2, 0, 0.73, 0, 22);
+        addPropCylinder(g, accent, 0.29, 0.295, 0.045, 18, 0, 0.55, 0);
+        for (let i = 0; i < 6; i++) {
+          const a = i / 6 * Math.PI * 2;
+          addPropSphere(g, shirt, 0.06, 0.045, 0.06, Math.cos(a) * 0.255, 0.27, Math.sin(a) * 0.255, 10);
+        }
+      } else {
+        addPropCylinder(g, pants, 0.072, 0.075, 0.38, 12, -0.11, 0.29, 0);
+        addPropCylinder(g, pants, 0.072, 0.075, 0.38, 12, 0.11, 0.29, 0);
+        addPropBox(g, shoe, 0.15, 0.07, 0.24, -0.11, 0.035, 0.045);
+        addPropBox(g, shoe, 0.15, 0.07, 0.24, 0.11, 0.035, 0.045);
+        addPropSphere(g, shirt, 0.29, 0.31, 0.2, 0, 0.73, 0, 22);
+        addPropBox(g, pants, 0.48, 0.06, 0.34, 0, 0.52, 0);
+      }
+      addPropBox(g, accent, 0.24, 0.055, 0.26, 0, 0.96, 0);
+      addPropSphere(g, accent, 0.024, 0.024, 0.012, 0, 0.8, 0.198, 8);
+      addPropSphere(g, accent, 0.024, 0.024, 0.012, 0, 0.68, 0.206, 8);
+      for (let s = -1; s <= 1; s += 2) {
+        addPropCylinder(g, skin, 0.05, 0.055, 0.28, 10, s * 0.31, 0.82, 0, 0, 0, s * 0.18);
+        addPropSphere(g, skin, 0.06, 0.06, 0.06, s * 0.365, 0.66, 0.02, 12);
+        addPropCylinder(g, shirt, 0.074, 0.078, 0.105, 10, s * 0.31, 0.9, 0, 0, 0, s * 0.18);
+      }
+      addPropCylinder(g, skin, 0.07, 0.075, 0.1, 10, 0, 0.99, 0);
+      addPropSphere(g, skin, 0.27, 0.28, 0.27, 0, 1.17, 0, 24);
+      addPropSphere(g, skin, 0.05, 0.06, 0.03, -0.272, 1.15, 0.02, 10);
+      addPropSphere(g, skin, 0.05, 0.06, 0.03, 0.272, 1.15, 0.02, 10);
+      addPersonFace(g, { skin: opts.skin, lashes: opts.lashes });
+      addPersonHair(g, opts.hairStyle || 'short', hair);
+      if (opts.details) opts.details(g);
+      return g;
+    }
+
+    function buildPersonMinifig() {
+      return buildPersonBase({
+        skin: '#f5d997', hair: '#6f574f', hairStyle: 'short',
+        shirt: '#b3dccb', pants: '#9db1cf', shoes: '#6e6571', accent: '#f8f1e6'
+      });
+    }
+
+    function buildPersonGirl() {
+      const g = buildPersonBase({
+        skin: '#f5d997', hair: '#a88979', hairStyle: 'bob', dress: true,
+        shirt: '#efaec2', pants: '#efaec2', shoes: '#b8a6c8', accent: '#f8f1e6', lashes: true
+      });
+      const dress = propMat('#efaec2');
+      const gold = propMat('#c6a14f');
+      addPropSphere(g, dress, 0.085, 0.055, 0.035, -0.25, 1.35, 0.04, 12);
+      addPropSphere(g, dress, 0.085, 0.055, 0.035, -0.35, 1.36, 0.005, 12);
+      addPropSphere(g, gold, 0.036, 0.032, 0.028, -0.3, 1.355, 0.035, 10);
+      addPropSphere(g, dress, 0.055, 0.04, 0.03, 0.08, 0.8, 0.205, 10);
+      return g;
+    }
+
+    function buildFirefighter() {
+      const g = buildPersonBase({
+        skin: '#e8b98d', hair: '#5b525d', hairStyle: 'short',
+        shirt: '#e8a1b0', pants: '#6e6571', shoes: '#5b525d', accent: '#f8f1e6'
+      });
+      const cream = propMat('#f8f1e6');
+      const dark = propMat('#6e6571');
+      const gold = propMat('#dcc692');
+      addPropBox(g, cream, 0.54, 0.035, 0.36, 0, 0.62, 0);
+      addPropBox(g, cream, 0.54, 0.035, 0.36, 0, 0.8, 0);
+      addPropBox(g, dark, 0.5, 0.055, 0.35, 0, 0.52, 0);
+      addPropSphere(g, propMat('#e8a1b0'), 0.3, 0.17, 0.29, 0, 1.39, -0.01, 18);
+      addPropCylinder(g, propMat('#c48e9a'), 0.355, 0.355, 0.05, 20, 0, 1.33, 0.03);
+      addPropBox(g, gold, 0.12, 0.08, 0.025, 0, 1.4, 0.28);
+      addPropBox(g, cream, 0.5, 0.02, 0.02, 0, 1.35, 0.26);
+      return g;
+    }
+
+    function buildDoctor() {
+      const g = buildPersonBase({
+        skin: '#f5d997', hair: '#6f574f', hairStyle: 'bob',
+        shirt: '#f8f1e6', pants: '#9db1cf', shoes: '#6e6571', accent: '#b3dccb'
+      });
+      const dark = propMat('#5b525d');
+      const gold = propMat('#dcc692');
+      const mint = propMat('#b3dccb');
+      addPropBox(g, mint, 0.22, 0.28, 0.02, 0, 0.82, 0.195);
+      addPropSphere(g, gold, 0.03, 0.03, 0.012, 0.1, 0.72, 0.21, 8);
+      for (let s = -1; s <= 1; s += 2) {
+        const frame = new THREE.Mesh(new THREE.TorusGeometry(0.052, 0.008, 6, 16), dark);
+        frame.position.set(s * 0.086, 1.2, 0.276);
+        frame.castShadow = false;
+        g.add(frame);
+      }
+      addPropBox(g, dark, 0.04, 0.012, 0.012, 0, 1.2, 0.276);
+      const steth = new THREE.Mesh(new THREE.TorusGeometry(0.15, 0.014, 6, 18), dark);
+      steth.rotation.x = Math.PI / 2;
+      steth.position.set(0, 0.95, 0.01);
+      g.add(steth);
+      addPropBox(g, dark, 0.02, 0.23, 0.02, 0.06, 0.82, 0.19);
+      addPropCylinder(g, gold, 0.045, 0.045, 0.02, 10, 0.06, 0.69, 0.2, Math.PI / 2, 0, 0);
+      return g;
+    }
+
+    function buildNurse() {
+      const g = buildPersonBase({
+        skin: '#e8b98d', hair: '#a88979', hairStyle: 'bun', dress: true,
+        shirt: '#b3dccb', pants: '#b3dccb', shoes: '#f8f1e6', accent: '#f8f1e6', lashes: true
+      });
+      const cream = propMat('#f8f1e6');
+      const coral = propMat('#e8a1b0');
+      addPropBox(g, cream, 0.32, 0.27, 0.02, 0, 0.68, 0.2);
+      addPropBox(g, coral, 0.12, 0.025, 0.018, 0, 1.4, 0.12);
+      addPropBox(g, coral, 0.025, 0.12, 0.018, 0, 1.4, 0.12);
+      addPropBox(g, cream, 0.3, 0.05, 0.18, 0, 1.36, 0.03);
+      return g;
+    }
+
+    function buildChef() {
+      const g = buildPersonBase({
+        skin: '#f5d997', hair: '#5b525d', hairStyle: 'short',
+        shirt: '#f8f1e6', pants: '#9b8c95', shoes: '#6e6571', accent: '#afcfe8'
+      });
+      const cream = propMat('#f8f1e6');
+      const blue = propMat('#afcfe8');
+      const dark = propMat('#6e6571');
+      addPropBox(g, blue, 0.24, 0.08, 0.22, 0, 0.95, 0.02);
+      addPropSphere(g, dark, 0.02, 0.02, 0.012, -0.07, 0.83, 0.205, 8);
+      addPropSphere(g, dark, 0.02, 0.02, 0.012, -0.07, 0.7, 0.213, 8);
+      addPropSphere(g, dark, 0.02, 0.02, 0.012, 0.07, 0.83, 0.205, 8);
+      addPropSphere(g, dark, 0.02, 0.02, 0.012, 0.07, 0.7, 0.213, 8);
+      addPropCylinder(g, cream, 0.255, 0.26, 0.14, 18, 0, 1.4, 0);
+      addPropSphere(g, cream, 0.3, 0.18, 0.3, 0, 1.53, -0.01, 18);
+      addPropCylinder(g, blue, 0.262, 0.262, 0.035, 18, 0, 1.34, 0);
+      addPropCylinder(g, propMat('#d4b49b'), 0.018, 0.022, 0.26, 8, 0.39, 0.58, 0.07, 0, 0, 0.2);
+      addPropSphere(g, propMat('#d4b49b'), 0.055, 0.035, 0.07, 0.43, 0.46, 0.07, 10);
+      return g;
+    }
+
+    function buildPolice() {
+      const g = buildPersonBase({
+        skin: '#e8b98d', hair: '#5b525d', hairStyle: 'short',
+        shirt: '#9db1cf', pants: '#7f95b8', shoes: '#5b525d', accent: '#f8f1e6'
+      });
+      const dark = propMat('#5b525d');
+      const blue = propMat('#87abc4');
+      const gold = propMat('#dcc692');
+      addPropBox(g, dark, 0.5, 0.055, 0.35, 0, 0.53, 0);
+      addPropBox(g, gold, 0.075, 0.055, 0.02, 0, 0.53, 0.2);
+      addPropSphere(g, gold, 0.045, 0.055, 0.015, -0.12, 0.8, 0.205, 10);
+      addPropCylinder(g, blue, 0.275, 0.285, 0.12, 18, 0, 1.37, 0);
+      addPropBox(g, propMat('#87abc4'), 0.38, 0.045, 0.2, 0, 1.31, 0.12);
+      addPropBox(g, dark, 0.34, 0.035, 0.16, 0, 1.3, 0.12);
+      addPropSphere(g, gold, 0.04, 0.05, 0.015, 0, 1.38, 0.28, 10);
+      return g;
+    }
+
+    function buildPostman() {
+      const g = buildPersonBase({
+        skin: '#f5d997', hair: '#6f574f', hairStyle: 'short',
+        shirt: '#a5c9e0', pants: '#87abc4', shoes: '#6e6571', accent: '#f8f1e6'
+      });
+      const cream = propMat('#f8f1e6');
+      const teal = propMat('#a5c9e0');
+      addPropCylinder(g, teal, 0.27, 0.28, 0.12, 18, 0, 1.37, 0);
+      addPropBox(g, teal, 0.38, 0.045, 0.19, 0, 1.31, 0.12);
+      addPropBox(g, cream, 0.14, 0.1, 0.02, 0, 1.4, 0.27);
+      addPropBox(g, propMat('#e8a1b0'), 0.06, 0.012, 0.01, 0, 1.4, 0.285);
+      addPropBox(g, cream, 0.3, 0.25, 0.13, 0.32, 0.6, -0.03);
+      addPropBox(g, cream, 0.06, 0.52, 0.04, 0.17, 0.76, 0.17, 0, 0, -0.35);
+      addPropBox(g, cream, 0.18, 0.13, 0.02, 0.4, 0.56, 0.12);
+      addPropSphere(g, propMat('#e8a1b0'), 0.035, 0.035, 0.012, 0.4, 0.56, 0.135, 8);
+      return g;
+    }
+
+    function buildGardener() {
+      const g = buildPersonBase({
+        skin: '#e8b98d', hair: '#b99782', hairStyle: 'bun',
+        shirt: '#f8f1e6', pants: '#b3dccb', shoes: '#6e6571', accent: '#c6dcb4'
+      });
+      const green = propMat('#b3dccb');
+      const cream = propMat('#f8f1e6');
+      const straw = propMat('#f6e3a7');
+      const leaf = propMat('#a8d1b9');
+      const blue = propMat('#a5c9e0');
+      addPropBox(g, green, 0.36, 0.3, 0.02, 0, 0.68, 0.2);
+      addPropBox(g, green, 0.06, 0.28, 0.04, -0.15, 0.86, 0.18, 0, 0, 0.12);
+      addPropBox(g, green, 0.06, 0.28, 0.04, 0.15, 0.86, 0.18, 0, 0, -0.12);
+      addPropCylinder(g, straw, 0.42, 0.42, 0.045, 22, 0, 1.34, 0);
+      addPropSphere(g, straw, 0.28, 0.14, 0.28, 0, 1.38, 0, 18);
+      addPropCylinder(g, leaf, 0.285, 0.285, 0.04, 18, 0, 1.35, 0);
+      addPropSphere(g, propMat('#f2a9bb'), 0.055, 0.04, 0.055, 0.14, 1.4, 0.22, 10);
+      addPropSphere(g, cream, 0.025, 0.02, 0.02, 0.14, 1.4, 0.26, 8);
+      addPropCylinder(g, blue, 0.13, 0.13, 0.18, 14, -0.42, 0.46, 0.08);
+      addPropCylinder(g, blue, 0.03, 0.03, 0.22, 8, -0.52, 0.55, 0.14, 0, 0, 0.7);
+      addPropCylinder(g, blue, 0.035, 0.035, 0.16, 8, -0.42, 0.58, 0.08, 0, 0, Math.PI / 2);
+      return g;
+    }
+
+    function buildAstronaut() {
+      const g = buildPersonBase({
+        skin: '#f5d997', hair: '#5b525d', hairStyle: 'short',
+        shirt: '#f8f1e6', pants: '#f8f1e6', shoes: '#d2cbd3', accent: '#afcfe8'
+      });
+      const cream = propMat('#f8f1e6');
+      const blue = propMat('#afcfe8');
+      const gray = propMat('#d2cbd3');
+      const coral = propMat('#f2a9bb');
+      addPropBox(g, gray, 0.44, 0.52, 0.2, 0, 0.76, -0.22);
+      addPropBox(g, blue, 0.34, 0.07, 0.03, 0, 0.92, 0.19);
+      addPropBox(g, blue, 0.34, 0.06, 0.03, 0, 0.72, 0.2);
+      addPropSphere(g, coral, 0.055, 0.045, 0.015, -0.12, 0.82, 0.205, 10);
+      addPropSphere(g, blue, 0.025, 0.025, 0.012, -0.12, 0.84, 0.215, 8);
+      const bubble = new THREE.Mesh(
+        new THREE.SphereGeometry(0.4, 24, 16),
+        new THREE.MeshStandardMaterial({
+          color: 0xdff1fa, transparent: true, opacity: 0.26,
+          roughness: 0.08, metalness: 0.04, side: THREE.DoubleSide,
+          depthWrite: false
+        })
+      );
+      bubble.position.set(0, 1.17, 0);
+      bubble.renderOrder = 2;
+      g.add(bubble);
+      const visor = new THREE.Mesh(
+        new THREE.TorusGeometry(0.22, 0.026, 8, 24),
+        new THREE.MeshStandardMaterial({ color: 0xafcfe8, roughness: 0.36, metalness: 0.08 })
+      );
+      visor.position.set(0, 1.17, 0.36);
+      g.add(visor);
+      addPropCylinder(g, blue, 0.3, 0.32, 0.08, 18, 0, 0.95, 0);
+      addPropCylinder(g, gray, 0.02, 0.02, 0.3, 8, 0.31, 1.35, 0);
+      addPropSphere(g, coral, 0.035, 0.035, 0.035, 0.31, 1.52, 0, 8);
+      addPropBox(g, blue, 0.07, 0.37, 0.05, 0.33, 0.65, 0.1);
+      return g;
+    }
+
+    function buildRabbit() {
+      const g = new THREE.Group();
+      const fur = propMat('#f6e7d6');
+      const cream = propMat('#fdf6ec');
+      const pink = propMat('#f0b7b5');
+      const dark = propMat('#5b525d');
+      const blush = propMat('#f0b7b5');
+      addPropSphere(g, fur, 0.34, 0.3, 0.46, 0, 0.39, -0.02, 20);
+      addPropSphere(g, cream, 0.24, 0.2, 0.13, 0, 0.35, 0.34, 16);
+      for (let i = 0; i < 4; i++) {
+        const lx = i < 2 ? -0.17 : 0.17;
+        const lz = i % 2 === 0 ? 0.2 : -0.2;
+        addPropCylinder(g, fur, 0.075, 0.085, 0.22, 12, lx, 0.12, lz);
+        addPropSphere(g, cream, 0.08, 0.05, 0.09, lx, 0.04, lz + 0.04, 10);
+      }
+      addPropSphere(g, fur, 0.3, 0.3, 0.28, 0, 0.76, 0.14, 20);
+      for (let s = -1; s <= 1; s += 2) {
+        addPropSphere(g, fur, 0.075, 0.26, 0.09, s * 0.11, 1.05, 0.1, 14);
+        addPropSphere(g, pink, 0.04, 0.18, 0.05, s * 0.11, 1.05, 0.155, 12);
+      }
+      addPropSphere(g, dark, 0.035, 0.045, 0.02, -0.1, 0.8, 0.39, 10);
+      addPropSphere(g, dark, 0.035, 0.045, 0.02, 0.1, 0.8, 0.39, 10);
+      addPropSphere(g, cream, 0.012, 0.015, 0.008, -0.092, 0.81, 0.405, 8);
+      addPropSphere(g, cream, 0.012, 0.015, 0.008, 0.092, 0.81, 0.405, 8);
+      addPropSphere(g, pink, 0.035, 0.028, 0.025, 0, 0.73, 0.42, 10);
+      addPropBox(g, dark, 0.025, 0.008, 0.01, -0.03, 0.7, 0.425, 0, 0, 0.5);
+      addPropBox(g, dark, 0.025, 0.008, 0.01, 0.03, 0.7, 0.425, 0, 0, -0.5);
+      addPropSphere(g, blush, 0.04, 0.02, 0.014, -0.18, 0.74, 0.38, 10);
+      addPropSphere(g, blush, 0.04, 0.02, 0.014, 0.18, 0.74, 0.38, 10);
+      for (let s = -1; s <= 1; s += 2) {
+        addPropCylinder(g, cream, 0.006, 0.006, 0.16, 8, s * 0.19, 0.73, 0.38, 0, 0, Math.PI / 2 + s * 0.15);
+      }
+      addPropSphere(g, cream, 0.1, 0.09, 0.1, 0, 0.38, -0.42, 12);
+      addPropCylinder(g, propMat('#edc7a5'), 0.02, 0.11, 0.25, 10, 0, 0.22, 0.37, 0.3, 0, 0);
+      addPropSphere(g, propMat('#edc7a5'), 0.08, 0.06, 0.08, 0, 0.13, 0.44, 10);
+      addPropSphere(g, propMat('#a8d1b9'), 0.04, 0.1, 0.04, -0.05, 0.35, 0.35, 8);
+      addPropSphere(g, propMat('#a8d1b9'), 0.04, 0.1, 0.04, 0.05, 0.35, 0.35, 8);
+      return g;
+    }
+
+    function buildPanda() {
+      const g = new THREE.Group();
+      const white = propMat('#f8f1e6');
+      const dark = propMat('#5b525d');
+      const cream = propMat('#fdf6ec');
+      const pink = propMat('#f0b7b5');
+      addPropSphere(g, white, 0.36, 0.3, 0.46, 0, 0.4, -0.02, 20);
+      addPropSphere(g, cream, 0.23, 0.19, 0.13, 0, 0.35, 0.34, 16);
+      for (let i = 0; i < 4; i++) {
+        const lx = i < 2 ? -0.19 : 0.19;
+        const lz = i % 2 === 0 ? 0.2 : -0.2;
+        addPropCylinder(g, dark, 0.085, 0.09, 0.2, 12, lx, 0.11, lz);
+        addPropSphere(g, dark, 0.085, 0.05, 0.09, lx, 0.035, lz + 0.04, 10);
+      }
+      addPropSphere(g, white, 0.31, 0.29, 0.29, 0, 0.79, 0.15, 20);
+      addPropSphere(g, dark, 0.11, 0.11, 0.05, -0.2, 0.99, 0.11, 14);
+      addPropSphere(g, dark, 0.11, 0.11, 0.05, 0.2, 0.99, 0.11, 14);
+      addPropSphere(g, dark, 0.1, 0.08, 0.02, -0.11, 0.83, 0.395, 12);
+      addPropSphere(g, dark, 0.1, 0.08, 0.02, 0.11, 0.83, 0.395, 12);
+      addPropSphere(g, cream, 0.035, 0.042, 0.016, -0.11, 0.83, 0.41, 10);
+      addPropSphere(g, cream, 0.035, 0.042, 0.016, 0.11, 0.83, 0.41, 10);
+      addPropSphere(g, dark, 0.018, 0.022, 0.01, -0.11, 0.835, 0.425, 8);
+      addPropSphere(g, dark, 0.018, 0.022, 0.01, 0.11, 0.835, 0.425, 8);
+      addPropSphere(g, dark, 0.04, 0.032, 0.025, 0, 0.76, 0.43, 10);
+      addPropBox(g, dark, 0.03, 0.008, 0.01, -0.03, 0.72, 0.435, 0, 0, 0.5);
+      addPropBox(g, dark, 0.03, 0.008, 0.01, 0.03, 0.72, 0.435, 0, 0, -0.5);
+      addPropSphere(g, pink, 0.04, 0.02, 0.014, -0.19, 0.76, 0.385, 10);
+      addPropSphere(g, pink, 0.04, 0.02, 0.014, 0.19, 0.76, 0.385, 10);
+      addPropSphere(g, dark, 0.09, 0.08, 0.09, 0, 0.37, -0.42, 12);
+      addPropSphere(g, white, 0.16, 0.14, 0.16, 0, 0.33, -0.03, 12);
+      return g;
+    }
+
+    function buildFox() {
+      const g = new THREE.Group();
+      const orange = propMat('#f1c9a5');
+      const cream = propMat('#fdf6ec');
+      const dark = propMat('#5b525d');
+      const pink = propMat('#f0b7b5');
+      addPropSphere(g, orange, 0.35, 0.3, 0.46, 0, 0.4, -0.02, 20);
+      addPropSphere(g, cream, 0.24, 0.2, 0.12, 0, 0.36, 0.35, 16);
+      for (let i = 0; i < 4; i++) {
+        const lx = i < 2 ? -0.18 : 0.18;
+        const lz = i % 2 === 0 ? 0.2 : -0.2;
+        addPropCylinder(g, orange, 0.075, 0.085, 0.22, 12, lx, 0.12, lz);
+        addPropSphere(g, dark, 0.08, 0.045, 0.09, lx, 0.035, lz + 0.04, 10);
+      }
+      addPropSphere(g, orange, 0.3, 0.28, 0.3, 0, 0.79, 0.14, 20);
+      addPropCylinder(g, orange, 0.001, 0.11, 0.22, 8, -0.17, 1.02, 0.12, 0.1, 0, -0.16);
+      addPropCylinder(g, orange, 0.001, 0.11, 0.22, 8, 0.17, 1.02, 0.12, 0.1, 0, 0.16);
+      addPropCylinder(g, cream, 0.001, 0.06, 0.13, 8, -0.17, 1.0, 0.16, 0.1, 0, -0.16);
+      addPropCylinder(g, cream, 0.001, 0.06, 0.13, 8, 0.17, 1.0, 0.16, 0.1, 0, 0.16);
+      addPropSphere(g, cream, 0.16, 0.11, 0.1, 0, 0.73, 0.38, 14);
+      addPropSphere(g, dark, 0.045, 0.035, 0.03, 0, 0.78, 0.48, 10);
+      addPropSphere(g, dark, 0.035, 0.045, 0.02, -0.11, 0.84, 0.4, 10);
+      addPropSphere(g, dark, 0.035, 0.045, 0.02, 0.11, 0.84, 0.4, 10);
+      addPropSphere(g, cream, 0.012, 0.015, 0.008, -0.102, 0.85, 0.415, 8);
+      addPropSphere(g, cream, 0.012, 0.015, 0.008, 0.102, 0.85, 0.415, 8);
+      addPropSphere(g, pink, 0.04, 0.02, 0.014, -0.19, 0.76, 0.38, 10);
+      addPropSphere(g, pink, 0.04, 0.02, 0.014, 0.19, 0.76, 0.38, 10);
+      const tailCurve = new THREE.CatmullRomCurve3([
+        new THREE.Vector3(0.06, 0.37, -0.4),
+        new THREE.Vector3(0.24, 0.5, -0.52),
+        new THREE.Vector3(0.34, 0.66, -0.44),
+        new THREE.Vector3(0.3, 0.76, -0.28)
+      ]);
+      const tail = new THREE.Mesh(new THREE.TubeGeometry(tailCurve, 16, 0.11, 10, false), orange);
+      tail.castShadow = true;
+      g.add(tail);
+      addPropSphere(g, cream, 0.09, 0.08, 0.09, 0.3, 0.76, -0.28, 12);
+      addPropSphere(g, cream, 0.07, 0.11, 0.03, 0, 0.68, 0.44, 12);
+      return g;
+    }
+
+    function buildPig() {
+      const g = new THREE.Group();
+      const pink = propMat('#f2a9bb');
+      const deep = propMat('#e8a1b0');
+      const cream = propMat('#fdf6ec');
+      const dark = propMat('#5b525d');
+      const blush = propMat('#f0b7b5');
+      addPropSphere(g, pink, 0.36, 0.3, 0.46, 0, 0.39, -0.02, 20);
+      addPropSphere(g, deep, 0.25, 0.2, 0.13, 0, 0.35, 0.34, 16);
+      for (let i = 0; i < 4; i++) {
+        const lx = i < 2 ? -0.18 : 0.18;
+        const lz = i % 2 === 0 ? 0.2 : -0.2;
+        addPropCylinder(g, deep, 0.08, 0.09, 0.2, 12, lx, 0.11, lz);
+        addPropSphere(g, deep, 0.08, 0.04, 0.09, lx, 0.035, lz + 0.04, 10);
+      }
+      addPropSphere(g, pink, 0.31, 0.29, 0.29, 0, 0.78, 0.14, 20);
+      addPropSphere(g, deep, 0.16, 0.12, 0.12, -0.16, 1.0, 0.12, 14);
+      addPropSphere(g, deep, 0.16, 0.12, 0.12, 0.16, 1.0, 0.12, 14);
+      addPropSphere(g, deep, 0.18, 0.13, 0.1, 0, 0.73, 0.4, 16);
+      addPropSphere(g, dark, 0.03, 0.045, 0.015, -0.06, 0.74, 0.49, 8);
+      addPropSphere(g, dark, 0.03, 0.045, 0.015, 0.06, 0.74, 0.49, 8);
+      addPropSphere(g, cream, 0.013, 0.016, 0.009, -0.1, 0.82, 0.4, 8);
+      addPropSphere(g, cream, 0.013, 0.016, 0.009, 0.1, 0.82, 0.4, 8);
+      addPropSphere(g, dark, 0.033, 0.043, 0.02, -0.1, 0.8, 0.38, 10);
+      addPropSphere(g, dark, 0.033, 0.043, 0.02, 0.1, 0.8, 0.38, 10);
+      addPropBox(g, dark, 0.02, 0.008, 0.01, -0.03, 0.69, 0.49, 0, 0, 0.5);
+      addPropBox(g, dark, 0.02, 0.008, 0.01, 0.03, 0.69, 0.49, 0, 0, -0.5);
+      addPropSphere(g, blush, 0.035, 0.018, 0.012, -0.19, 0.76, 0.37, 10);
+      addPropSphere(g, blush, 0.035, 0.018, 0.012, 0.19, 0.76, 0.37, 10);
+      addPropSphere(g, deep, 0.07, 0.07, 0.07, 0, 0.32, -0.42, 12);
+      addPropSphere(g, cream, 0.16, 0.14, 0.12, 0, 0.34, 0.02, 12);
+      return g;
+    }
+
     const PROP_BUILDERS = {
-      minifig: buildMinifig,
-      girl: buildGirl,
+      minifig: buildPersonMinifig,
+      girl: buildPersonGirl,
+      firefighter: buildFirefighter,
+      doctor: buildDoctor,
+      nurse: buildNurse,
+      chef: buildChef,
+      police: buildPolice,
+      postman: buildPostman,
+      gardener: buildGardener,
+      astronaut: buildAstronaut,
       cat: buildCat,
       dog: buildDog,
       duck: buildDuck,
+      rabbit: buildRabbit,
+      panda: buildPanda,
+      fox: buildFox,
+      pig: buildPig,
       chair: buildChair,
       table: buildTable,
       lamp: buildLamp,
@@ -3061,13 +3543,41 @@
     }
 
 
-    const CHAR_ACC = {
-      minifig: { umbY: 1.64, umbR: 0.52, umbX: -0.26, poleBottom: 0.55, scarfY: 0.84, scarfR: 0.2, lanternX: 0.37, lanternY: 0.55, umbColor: 0xb3dccb, scarfColor: 0xccbbe0 },
-      girl: { umbY: 1.64, umbR: 0.52, umbX: -0.26, poleBottom: 0.55, scarfY: 0.84, scarfR: 0.2, lanternX: 0.37, lanternY: 0.55, umbColor: 0xf2a9bb, scarfColor: 0xafcfe8 },
+    const PERSON_ANCHORS = {
+      umbY: 1.9, umbR: 0.56, umbX: -0.3, poleBottom: 0.7,
+      scarfY: 0.97, scarfR: 0.18, lanternX: 0.36, lanternY: 0.6
+    };
+    const PERSON_STYLE = {
+      minifig: { umb: 0xb3dccb, scarf: 0xccbbe0, rain: 0xafcfe8, snow: 0xc6dcb4, beanie: true },
+      girl: { umb: 0xf2a9bb, scarf: 0xafcfe8, rain: 0xafcfe8, snow: 0xf6c6a8, beanie: true },
+      firefighter: { umb: 0xe8a1b0, scarf: 0xf8f1e6, rain: 0xe8a1b0, snow: 0xdcc692, beanie: false },
+      doctor: { umb: 0xb3dccb, scarf: 0xafcfe8, rain: 0xb3dccb, snow: 0xf8f1e6, beanie: true },
+      nurse: { umb: 0xf2a9bb, scarf: 0xafcfe8, rain: 0xb3dccb, snow: 0xf2a9bb, beanie: false },
+      chef: { umb: 0xafcfe8, scarf: 0xafcfe8, rain: 0xafcfe8, snow: 0xf8f1e6, beanie: false },
+      police: { umb: 0x9db1cf, scarf: 0xdcc692, rain: 0x9db1cf, snow: 0xccbbe0, beanie: false },
+      postman: { umb: 0xa5c9e0, scarf: 0xb3dccb, rain: 0xa5c9e0, snow: 0xf6c6a8, beanie: false },
+      gardener: { umb: 0xb3dccb, scarf: 0xf2a9bb, rain: 0xb3dccb, snow: 0xf6e3a7, beanie: false },
+      astronaut: { umb: 0xccbbe0, scarf: 0xafcfe8, rain: 0xccbbe0, snow: 0xf8f1e6, beanie: false }
+    };
+    const ANIMAL_ACC = {
       cat: { umbY: 1.16, umbR: 0.38, umbX: -0.16, poleBottom: 0.32, scarfY: 0.55, scarfR: 0.16, lanternX: 0.25, lanternY: 0.3, umbColor: 0xf6c6a8, scarfColor: 0xf2a9bb },
       dog: { umbY: 1.3, umbR: 0.4, umbX: -0.18, poleBottom: 0.36, scarfY: 0.59, scarfR: 0.17, lanternX: 0.27, lanternY: 0.33, umbColor: 0xafcfe8, scarfColor: 0xb3dccb },
-      duck: { umbY: 1.08, umbR: 0.35, umbX: -0.14, poleBottom: 0.3, scarfY: 0.46, scarfR: 0.14, lanternX: 0.23, lanternY: 0.27, umbColor: 0xb3dccb, scarfColor: 0xafcfe8 }
+      duck: { umbY: 1.08, umbR: 0.35, umbX: -0.14, poleBottom: 0.3, scarfY: 0.46, scarfR: 0.14, lanternX: 0.23, lanternY: 0.27, umbColor: 0xb3dccb, scarfColor: 0xafcfe8 },
+      rabbit: { umbY: 1.52, umbR: 0.42, umbX: -0.18, poleBottom: 0.42, scarfY: 0.55, scarfR: 0.17, lanternX: 0.28, lanternY: 0.32, umbColor: 0xf6c6a8, scarfColor: 0xf2a9bb },
+      panda: { umbY: 1.34, umbR: 0.42, umbX: -0.18, poleBottom: 0.38, scarfY: 0.53, scarfR: 0.18, lanternX: 0.28, lanternY: 0.34, umbColor: 0xafcfe8, scarfColor: 0xb3dccb },
+      fox: { umbY: 1.4, umbR: 0.42, umbX: -0.18, poleBottom: 0.4, scarfY: 0.55, scarfR: 0.18, lanternX: 0.29, lanternY: 0.35, umbColor: 0xf6c6a8, scarfColor: 0xb3dccb },
+      pig: { umbY: 1.2, umbR: 0.38, umbX: -0.16, poleBottom: 0.32, scarfY: 0.5, scarfR: 0.16, lanternX: 0.25, lanternY: 0.3, umbColor: 0xf2a9bb, scarfColor: 0xafcfe8 }
     };
+    const CHAR_ACC = {};
+    Object.keys(PERSON_STYLE).forEach(function (id) {
+      const s = PERSON_STYLE[id];
+      CHAR_ACC[id] = Object.assign({}, PERSON_ANCHORS, {
+        umbColor: s.umb, scarfColor: s.scarf,
+        raincoat: s.rain, snowcoat: s.snow,
+        beanie: s.beanie, beanieColor: s.snow
+      });
+    });
+    Object.assign(CHAR_ACC, ANIMAL_ACC);
 
     const VEHICLE_LIGHT_ANCHORS = {
       car: [
@@ -3103,6 +3613,86 @@
       sprite.position.set(x, y, z);
       sprite.scale.set(size, size, 1);
       return sprite;
+    }
+
+
+    function buildWeatherCoat(color, puffy, accent) {
+      const grp = new THREE.Group();
+      const mat = new THREE.MeshStandardMaterial({
+        color: color,
+        roughness: puffy ? 0.84 : 0.36,
+        metalness: 0
+      });
+      const trimMat = new THREE.MeshStandardMaterial({
+        color: accent || 0xf8f1e6,
+        roughness: 0.7
+      });
+      const shell = new THREE.Mesh(
+        new THREE.CylinderGeometry(puffy ? 0.31 : 0.29, puffy ? 0.35 : 0.33, puffy ? 0.52 : 0.48, 18),
+        mat
+      );
+      shell.position.y = 0.72;
+      grp.add(shell);
+      for (let s = -1; s <= 1; s += 2) {
+        const sleeve = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.082, 0.088, 0.32, 10),
+          mat
+        );
+        sleeve.position.set(s * 0.31, 0.82, 0);
+        sleeve.rotation.z = s * 0.18;
+        grp.add(sleeve);
+      }
+      const zip = new THREE.Mesh(new THREE.BoxGeometry(0.024, 0.4, 0.02), trimMat);
+      zip.position.set(0, 0.73, 0.315);
+      grp.add(zip);
+      const collar = new THREE.Mesh(new THREE.TorusGeometry(0.215, 0.03, 6, 18), trimMat);
+      collar.rotation.x = Math.PI / 2;
+      collar.position.y = 0.965;
+      grp.add(collar);
+      if (puffy) {
+        const seamMat = new THREE.MeshStandardMaterial({
+          color: new THREE.Color(color).offsetHSL(0, -0.02, -0.035),
+          roughness: 0.85
+        });
+        for (let y = 0.6; y <= 0.86; y += 0.13) {
+          const seam = new THREE.Mesh(new THREE.TorusGeometry(0.338, 0.012, 5, 20), seamMat);
+          seam.rotation.x = Math.PI / 2;
+          seam.position.y = y;
+          grp.add(seam);
+        }
+        const pompom = new THREE.Mesh(new THREE.SphereGeometry(0.07, 10, 8), trimMat);
+        pompom.position.set(0, 0.99, 0);
+        grp.add(pompom);
+      }
+      grp.traverse(function (o) {
+        if (o.isMesh) { o.castShadow = false; o.receiveShadow = false; }
+      });
+      grp.visible = false;
+      return grp;
+    }
+
+    function buildBeanie(color) {
+      const grp = new THREE.Group();
+      const mat = new THREE.MeshStandardMaterial({ color: color, roughness: 0.82 });
+      const dome = new THREE.Mesh(
+        new THREE.SphereGeometry(0.295, 16, 9, 0, Math.PI * 2, 0, Math.PI / 2),
+        mat
+      );
+      dome.scale.y = 0.58;
+      dome.position.y = 1.36;
+      grp.add(dome);
+      const brim = new THREE.Mesh(new THREE.TorusGeometry(0.286, 0.034, 6, 20), mat);
+      brim.rotation.x = Math.PI / 2;
+      brim.position.y = 1.335;
+      grp.add(brim);
+      const pompom = new THREE.Mesh(new THREE.SphereGeometry(0.068, 10, 8), new THREE.MeshStandardMaterial({ color: 0xf8f1e6, roughness: 0.8 }));
+      pompom.position.y = 1.49;
+      grp.add(pompom);
+      grp.traverse(function (o) {
+        if (o.isMesh) { o.castShadow = false; o.receiveShadow = false; }
+      });
+      grp.visible = false;
+      return grp;
     }
 
     function attachCharacterAccessories(group, def) {
@@ -3143,12 +3733,13 @@
 
       const scarf = new THREE.Group();
       const scarfMat = new THREE.MeshStandardMaterial({ color: a.scarfColor, roughness: 0.8 });
+      const scarfY = a.raincoat ? a.scarfY + 0.015 : a.scarfY;
       const ring = new THREE.Mesh(new THREE.TorusGeometry(a.scarfR, 0.046, 6, 18), scarfMat);
       ring.rotation.x = Math.PI / 2;
-      ring.position.y = a.scarfY;
+      ring.position.y = scarfY;
       scarf.add(ring);
-      const tail = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.22, 0.05), scarfMat);
-      tail.position.set(0.1, a.scarfY - 0.14, a.scarfR * 0.86);
+      const tail = new THREE.Mesh(new THREE.BoxGeometry(a.raincoat ? 0.15 : 0.12, a.raincoat ? 0.26 : 0.22, 0.05), scarfMat);
+      tail.position.set(0.1, scarfY - 0.14, a.raincoat ? 0.345 : a.scarfR * 0.86);
       tail.rotation.z = 0.12;
       scarf.add(tail);
       scarf.traverse(function (o) { if (o.isMesh) { o.castShadow = false; o.receiveShadow = false; } });
@@ -3178,7 +3769,26 @@
       lantern.visible = false;
       group.add(lantern);
 
-      group.userData.charAccessories = { umbrella: umbrella, scarf: scarf, lantern: lantern };
+      let rainCoat = null;
+      let snowCoat = null;
+      let beanie = null;
+      if (a.raincoat) {
+        rainCoat = buildWeatherCoat(a.raincoat, false, 0xf8f1e6);
+        group.add(rainCoat);
+      }
+      if (a.snowcoat) {
+        snowCoat = buildWeatherCoat(a.snowcoat, true, 0xf8f1e6);
+        group.add(snowCoat);
+      }
+      if (a.beanie) {
+        beanie = buildBeanie(a.beanieColor || a.snowcoat);
+        group.add(beanie);
+      }
+
+      group.userData.charAccessories = {
+        umbrella: umbrella, scarf: scarf, lantern: lantern,
+        rainCoat: rainCoat, snowCoat: snowCoat, beanie: beanie
+      };
     }
 
     function attachNightGlow(group, propType) {
@@ -3225,7 +3835,7 @@
     function attachEnvironmentProps(group, rec) {
       const def = PROP_MAP[rec.propType];
       if (!def) return;
-      if (def.cat === 'char' && CHAR_ACC[def.id]) attachCharacterAccessories(group, def);
+      if ((def.cat === 'person' || def.cat === 'animal' || def.cat === 'char') && CHAR_ACC[def.id]) attachCharacterAccessories(group, def);
       if (rec.propType === 'window' || rec.propType === 'door') attachNightGlow(group, rec.propType);
       if (def.cat === 'traffic' && VEHICLE_LIGHT_ANCHORS[rec.propType]) attachVehicleGlow(group, def);
       syncAttachmentVisibility(group);
@@ -3296,7 +3906,8 @@
     }
 
     function isPropCategory(cat) {
-      return cat === 'char' || cat === 'furniture' || cat === 'traffic' || cat === 'build';
+      return cat === 'person' || cat === 'animal' || cat === 'char' ||
+        cat === 'furniture' || cat === 'traffic' || cat === 'build';
     }
 
     function currentPiece() {
@@ -4254,6 +4865,8 @@
       special: 'slope1x2',
       large: 'floor6x6',
       build: 'column',
+      person: 'minifig',
+      animal: 'cat',
       char: 'minifig',
       furniture: 'chair',
       traffic: 'road_straight'
@@ -4346,6 +4959,18 @@
         train_car: '<rect x="3" y="6" width="18" height="9" rx="2"/><path d="M3 11h18M7 6V4h10v2M8 15v3M16 15v3"/><circle cx="8" cy="18" r="1.4"/><circle cx="16" cy="18" r="1.4"/>',
         train_freight: '<path d="M3 13h18v4H3zM5 10h5v3H5zM12 9h7v4h-7z"/><circle cx="7" cy="19" r="1.4"/><circle cx="17" cy="19" r="1.4"/>',
         car: '<path d="M3 15v-3l2-4h9l3 4h2v3H3Z"/><circle cx="7" cy="17" r="1.6"/><circle cx="17" cy="17" r="1.6"/><path d="M8 8v4M13 8v4"/>',
+        firefighter: '<path d="M5 15a7 7 0 0 1 14 0v4H5v-4Z"/><path d="M8 15v-3h8v3M9 8c-1.4-1.2-1.4-3 0-4.2 1.5 1 2.2 2.3 2.2 4.2M15 8c1.4-1.2 1.4-3 0-4.2M12 4v4"/>',
+        doctor: '<circle cx="8" cy="7" r="2"/><circle cx="8" cy="7" r=".5" fill="currentColor" stroke="none"/><path d="M8 9v5M6 11h4M8 14c0 4 2.5 6 5 6M13 16h4M13 19h5"/>',
+        nurse: '<path d="M6 21V7h12v14"/><path d="M9 7V4h6v3M3 21h18"/><path d="M12 11v6M9 14h6"/>',
+        chef: '<path d="M6 21h12M7 21v-7M17 21v-7M5 14c0-4 3-6 7-6s7 2 7 6H5Z"/><path d="M9 21v-4h6v4"/>',
+        police: '<path d="M4 10h16v3H4zM7 10V6h10v4"/><path d="M9 13v8M15 13v8M6 21h12"/><circle cx="12" cy="8" r=".8" fill="currentColor" stroke="none"/>',
+        postman: '<rect x="3" y="6" width="18" height="13" rx="2"/><path d="m4 8 8 6 8-6"/><path d="M3 19h18"/>',
+        gardener: '<path d="M4 19h16M6 19v-6h7v6M9 13V9h4v4"/><path d="M6 13c-2-1-2-4 0-5M17 12c3 0 4 2 3 4M16 9h4v3"/>',
+        astronaut: '<circle cx="12" cy="10" r="7"/><path d="M9 9.5h.01M15 9.5h.01M9 13c1.5 1.5 4.5 1.5 6 0"/><path d="M8 17v3M16 17v3M7 20h3M14 20h3"/>',
+        rabbit: '<path d="M8 10C8 4 4 2 4 6c0 3 2 5 4 6M16 10c0-6 4-8 4-4 0 3-2 5-4 6"/><path d="M6 14a6 6 0 0 1 12 0v2a6 6 0 0 1-12 0v-2Z"/><path d="M9 14h.01M15 14h.01M12 16v1"/>',
+        panda: '<circle cx="6" cy="6" r="2.5"/><circle cx="18" cy="6" r="2.5"/><path d="M5 14a7 7 0 0 1 14 0v2a7 7 0 0 1-14 0v-2Z"/><path d="M8 13c.8-1 2.4-1 3.2 0M12.8 13c.8-1 2.4-1 3.2 0"/><path d="M12 16v1"/>',
+        fox: '<path d="m3 3 4 6M21 3l-4 6"/><path d="M5 14a7 7 0 0 1 14 0v2a7 7 0 0 1-14 0v-2Z"/><path d="M8 13h.01M16 13h.01M12 15v2M9 18h6"/>',
+        pig: '<path d="M5 11c0-4 3-7 7-7s7 3 7 7v5H5v-5Z"/><path d="M5 11 3 8M19 11l2-3"/><ellipse cx="12" cy="15" rx="4" ry="2.5"/><path d="M10 15h.01M14 15h.01M8 11h.01M16 11h.01"/>',
         column: '<path d="M9 3h6M9 21h6M10 3v18M14 3v18M8 6h8M8 18h8"/>',
         fence: '<path d="M3 21h18M5 21V9l2-2 2 2v12M11 21V9l2-2 2 2v12M17 21V9l2-2 2 2v12M3 14h18"/>',
         door: '<path d="M5 21V4h14v17M3 21h18"/><path d="M9 4v17"/><circle cx="15" cy="12" r=".9" fill="currentColor" stroke="none"/>',
@@ -4856,8 +5481,13 @@
           rebuildPlate();
           rebuildBlueprintMesh();
         }
-        if (CATEGORIES.some(function (c) { return c.id === data.category; })) {
-          state.category = data.category;
+        let savedCategory = data.category;
+        if (savedCategory === 'char') {
+          const savedProp = PROP_MAP[data.propType];
+          savedCategory = savedProp && savedProp.cat === 'animal' ? 'animal' : 'person';
+        }
+        if (CATEGORIES.some(function (c) { return c.id === savedCategory; })) {
+          state.category = savedCategory;
         }
         if (TYPE_MAP[data.type]) state.type = data.type;
         if (PROP_MAP[data.propType]) state.propType = data.propType;
