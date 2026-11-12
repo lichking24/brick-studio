@@ -3286,7 +3286,8 @@
       cx: 0,
       cz: 0,
       fade: 0,
-      captured: new Map()
+      captured: new Map(),
+      reserved: []
     };
     const tornadoDummy = new THREE.Object3D();
 
@@ -3341,6 +3342,7 @@
         tornado.endZ = sz;
       }
       tornado.captured.clear();
+      tornado.reserved = [];
       tornado.active = true;
       tornado.startTime = performance.now();
       tornado.fade = 0;
@@ -3359,13 +3361,35 @@
       g.scale.set(item.sx, item.sy, item.sz);
     }
 
+    function finalizeTornadoLanding(item) {
+      const rec = item.rec;
+      const g = item.group;
+      if (!rec || !g || !g.parent || !item.dest) return false;
+      if (state.meshById.get(rec.id) !== g || state.props.indexOf(rec) === -1) return false;
+      unregisterOccupancy(rec);
+      rec.gx = item.dest.gx;
+      rec.gz = item.dest.gz;
+      rec.layer = 0;
+      g.position.set(item.dest.wx, 0, item.dest.wz);
+      g.rotation.set(0, rec.rot * Math.PI / 2, 0);
+      g.scale.set(item.sx, item.sy, item.sz);
+      registerOccupancy(rec);
+      spawnFxParticles(
+        item.dest.wx, 0.12, item.dest.wz,
+        [0xe8d8c8, 0xf0b7b5, 0xd2cbd3],
+        6, 2.2, { gravity: 8, life: 0.65 }
+      );
+      return true;
+    }
+
     function finishTornado() {
       let scattered = 0;
       tornado.captured.forEach(function (item) {
-        if (!scatterTornadoProp(item, tornado.endX, tornado.endZ)) restoreTornadoProp(item);
+        if (!finalizeTornadoLanding(item)) restoreTornadoProp(item);
         else scattered++;
       });
       tornado.captured.clear();
+      tornado.reserved = [];
       tornado.active = false;
       tornadoGroup.visible = false;
       for (let i = 0; i < tornadoOpacityMats.length; i++) {
@@ -3438,7 +3462,7 @@
           const dzp = g.position.z - cz;
           const dist = Math.hypot(dxp, dzp);
           if (dist > 5.2 || g.position.y > 10) continue;
-          tornado.captured.set(prop.id, {
+          const caught = {
             group: g,
             rec: prop,
             px: g.position.x,
@@ -3455,17 +3479,21 @@
             radius: clamp(dist, 0.8, 4.2),
             lift: 3.2 + Math.random() * 4.0,
             spin: (0.8 + Math.random() * 1.1) * (Math.random() < 0.5 ? -1 : 1),
-            tumble: 0.5 + Math.random() * 0.9
-          });
+            tumble: 0.5 + Math.random() * 0.9,
+            landDelay: Math.random() * 0.1
+          };
+          caught.dest = findScatterSpot(prop, tornado.endX, tornado.endZ, tornado.reserved);
+          reserveScatterSpot(tornado.reserved, caught.dest);
+          tornado.captured.set(prop.id, caught);
           if (tornado.captured.size >= 14) break;
         }
       }
 
-      const settle = smoothstep(0.76, 0.97, p);
-      const envelope = smoothstep(0.02, 0.16, p) * (1 - smoothstep(0.76, 0.96, p));
+      const envelope = smoothstep(0.02, 0.16, p) * (1 - smoothstep(0.72, 0.94, p));
       tornado.captured.forEach(function (item, id) {
         const g = state.meshById.get(id);
         if (g !== item.group || !g.parent) return;
+        const settle = smoothstep(0.68 + (item.landDelay || 0), 0.98, p);
         const ageRamp = smoothstep(0, 1, (now - item.caughtAt) / 500);
         const lift = ageRamp * envelope;
         const angle = item.phase + (now - item.caughtAt) * 0.001 * item.spin * 1.9;
@@ -3474,15 +3502,19 @@
         const swirlZ = cz + Math.sin(angle) * radius;
         const swirlY = item.py + 0.8 + item.lift * lift +
           Math.sin(now * 0.0022 + item.phase) * 0.3 * lift;
+        const landX = item.dest ? item.dest.wx : item.px;
+        const landZ = item.dest ? item.dest.wz : item.pz;
+        const landRy = item.dest ? item.rec.rot * Math.PI / 2 : item.ry;
+        const fling = Math.sin(settle * Math.PI) * 0.7;
         g.position.set(
-          swirlX * (1 - settle) + item.px * settle,
-          swirlY * (1 - settle) + item.py * settle,
-          swirlZ * (1 - settle) + item.pz * settle
+          swirlX * (1 - settle) + landX * settle,
+          swirlY * (1 - settle) + item.py * settle + fling,
+          swirlZ * (1 - settle) + landZ * settle
         );
         const spinAngle = (now - item.caughtAt) * 0.001 * item.spin * 2.1;
-        g.rotation.y = item.ry + spinAngle * (1 - settle);
-        g.rotation.x = item.rx + Math.sin(now * 0.0021 + item.phase) * item.tumble * 0.26 * (1 - settle);
-        g.rotation.z = item.rz + Math.cos(now * 0.0018 + item.phase) * item.tumble * 0.24 * (1 - settle);
+        g.rotation.y = (item.ry + spinAngle) * (1 - settle) + landRy * settle;
+        g.rotation.x = (item.rx + Math.sin(now * 0.0021 + item.phase) * item.tumble * 0.26) * (1 - settle);
+        g.rotation.z = (item.rz + Math.cos(now * 0.0018 + item.phase) * item.tumble * 0.24) * (1 - settle);
         const wobble = 1 + Math.sin(now * 0.004 + item.phase) * 0.045 * (1 - settle);
         g.scale.set(
           item.sx * wobble * (1 - settle) + item.sx * settle,
@@ -4067,18 +4099,14 @@
       return targets;
     }
 
-    function scatterTornadoProp(item, endX, endZ, opts) {
-      opts = opts || {};
-      const rec = item.rec;
-      const group = item.group;
-      if (!rec || !group || !group.parent) return false;
-      if (state.meshById.get(rec.id) !== group) return false;
-      if (state.props.indexOf(rec) === -1) return false;
+    function rectsOverlap(ax, az, aw, ah, bx, bz, bw, bh) {
+      return ax < bx + bw && ax + aw > bx && az < bz + bh && az + ah > bz;
+    }
+
+    function findScatterSpot(rec, endX, endZ, reserved) {
       const def = PROP_MAP[rec.propType];
-      if (!def) return false;
+      if (!def) return null;
       const dims = effDims(def, rec.rot);
-      unregisterOccupancy(rec);
-      let chosen = null;
       for (let attempt = 0; attempt < 44; attempt++) {
         const angle = Math.random() * Math.PI * 2;
         const radius = attempt < 4 ? 2 + Math.random() * 3 : 3 + Math.random() * 9.5;
@@ -4088,32 +4116,33 @@
         let gz = Math.round((wz + SIZE / 2) / CELL - dims[1] / 2);
         gx = clamp(gx, 0, SIZE - dims[0]);
         gz = clamp(gz, 0, SIZE - dims[1]);
-        if (canPlace('prop', rec.propType, rec.rot, gx, gz, 0)) {
-          chosen = { gx: gx, gz: gz };
-          break;
+        if (!canPlace('prop', rec.propType, rec.rot, gx, gz, 0)) continue;
+        let clash = false;
+        if (reserved) {
+          for (let i = 0; i < reserved.length; i++) {
+            const r = reserved[i];
+            if (rectsOverlap(gx, gz, dims[0], dims[1], r.gx, r.gz, r.w, r.h)) {
+              clash = true;
+              break;
+            }
+          }
         }
+        if (clash) continue;
+        return {
+          gx: gx,
+          gz: gz,
+          w: dims[0],
+          h: dims[1],
+          wx: worldX(gx, dims[0]),
+          wz: worldZ(gz, dims[1])
+        };
       }
-      if (!chosen) {
-        registerOccupancy(rec);
-        return false;
-      }
-      rec.gx = chosen.gx;
-      rec.gz = chosen.gz;
-      rec.layer = 0;
-      const wx = worldX(rec.gx, dims[0]);
-      const wz = worldZ(rec.gz, dims[1]);
-      group.position.set(wx, 0, wz);
-      group.rotation.set(0, rec.rot * Math.PI / 2, 0);
-      group.scale.set(item.sx, item.sy, item.sz);
-      registerOccupancy(rec);
-      spawnFxParticles(
-        wx, 0.12, wz,
-        opts.colors || [0xe8d8c8, 0xf0b7b5, 0xd2cbd3],
-        opts.count || 6,
-        opts.power || 2.2,
-        { gravity: opts.gravity == null ? 8 : opts.gravity, life: opts.life || 0.65 }
-      );
-      return true;
+      return null;
+    }
+
+    function reserveScatterSpot(list, spot) {
+      if (!spot) return;
+      list.push({ gx: spot.gx, gz: spot.gz, w: spot.w, h: spot.h });
     }
 
     // ---------------------------------------------------------------- earthquake
@@ -4167,6 +4196,8 @@
       washTargets: [],
       washed: new Set(),
       hit: new Set(),
+      carried: new Map(),
+      reserved: [],
       lastFoamAt: 0
     };
     const tsunamiGroup = new THREE.Group();
@@ -4245,6 +4276,8 @@
       tsunami.washTargets = [];
       tsunami.washed = new Set();
       tsunami.hit = new Set();
+      tsunami.carried.clear();
+      tsunami.reserved = [];
       tsunami.lastFoamAt = 0;
       const targets = pickDamageTargets(2, 8);
       for (let i = 0; i < targets.length; i++) {
@@ -4276,6 +4309,30 @@
       playSound('wave');
       toast('海啸来啦 · 海浪从海面冲上舞台');
       return true;
+    }
+
+    function landTsunamiCarry(item) {
+      const rec = item.rec;
+      const g = item.group;
+      if (!g || !g.parent) return;
+      if (state.meshById.get(rec.id) !== g || state.props.indexOf(rec) === -1) return;
+      if (item.dest) {
+        unregisterOccupancy(rec);
+        rec.gx = item.dest.gx;
+        rec.gz = item.dest.gz;
+        rec.layer = 0;
+        g.position.set(item.dest.wx, 0, item.dest.wz);
+        g.rotation.set(0, rec.rot * Math.PI / 2, 0);
+        registerOccupancy(rec);
+      } else {
+        g.position.set(item.sx, item.sy, item.sz);
+        g.rotation.set(item.srx, item.sry, item.srz);
+      }
+      spawnFxParticles(
+        g.position.x, 0.16, g.position.z,
+        [0xf4fdff, 0xd8f5fb, 0x9fd8e6],
+        5, 1.6, { gravity: 5, life: 0.55, size: 0.1 }
+      );
     }
 
     function updateTsunami(now) {
@@ -4313,23 +4370,68 @@
         const item = tsunami.washTargets[i];
         if (tsunami.washed.has(item.rec.id)) continue;
         if (waveX - 1.4 > item.x) continue;
-        tsunami.washed.add(item.rec.id);
         const g = state.meshById.get(item.rec.id);
-        if (!g || !g.parent) continue;
-        const fake = {
+        if (!g || !g.parent) {
+          tsunami.washed.add(item.rec.id);
+          continue;
+        }
+        const dest = findScatterSpot(
+          item.rec,
+          -SIZE / 2 + 6,
+          g.position.z + (Math.random() - 0.5) * 10,
+          tsunami.reserved
+        );
+        if (!dest) continue;
+        tsunami.washed.add(item.rec.id);
+        reserveScatterSpot(tsunami.reserved, dest);
+        tsunami.carried.set(item.rec.id, {
           rec: item.rec,
           group: g,
-          sx: g.scale.x,
-          sy: g.scale.y,
-          sz: g.scale.z
-        };
-        scatterTornadoProp(
-          fake,
-          -SIZE / 2 + 6,
-          g.position.z + (Math.random() - 0.5) * 14,
-          { colors: [0xd8f5fb, 0x9fdfea, 0xf4fdff], count: 8, power: 2.4, gravity: 5, life: 0.75 }
+          sx: g.position.x,
+          sy: g.position.y,
+          sz: g.position.z,
+          srx: g.rotation.x,
+          sry: g.rotation.y,
+          srz: g.rotation.z,
+          dest: dest,
+          startAt: now,
+          duration: 1000 + Math.random() * 500,
+          phase: Math.random() * Math.PI * 2,
+          spin: (Math.random() < 0.5 ? -1 : 1) * (0.6 + Math.random() * 0.6)
+        });
+        spawnFxParticles(
+          g.position.x, 0.25, g.position.z,
+          [0xd8f5fb, 0x9fdfea, 0xf4fdff],
+          8, 2.4, { gravity: 5, life: 0.75 }
         );
-        scheduleSave();
+      }
+      if (tsunami.carried.size) {
+        tsunami.carried.forEach(function (item, id) {
+          const g = state.meshById.get(id);
+          if (!g || g !== item.group || !g.parent) {
+            tsunami.carried.delete(id);
+            return;
+          }
+          const q = clamp((now - item.startAt) / item.duration, 0, 1);
+          const e = smoothstep(0, 1, q);
+          const arc = Math.sin(q * Math.PI);
+          const dest = item.dest;
+          const tx = dest ? dest.wx : item.sx;
+          const tz = dest ? dest.wz : item.sz;
+          g.position.x = item.sx + (tx - item.sx) * e;
+          g.position.z = item.sz + (tz - item.sz) * e;
+          g.position.y = item.sy * (1 - e) + 0.18 * arc +
+            Math.sin(now * 0.009 + item.phase) * 0.09 * (1 - q);
+          g.rotation.x = item.srx * (1 - e) + (0.52 + Math.sin(item.phase + q * 4.4) * 0.34) * arc;
+          g.rotation.z = item.srz * (1 - e) + (0.3 + Math.cos(item.phase + q * 3.7) * 0.3) * arc;
+          g.rotation.y = item.sry * (1 - e) + (item.rec.rot * Math.PI / 2) * e +
+            item.spin * q * Math.PI * 1.3 * (1 - q);
+          if (q >= 1) {
+            landTsunamiCarry(item);
+            tsunami.carried.delete(id);
+            scheduleSave();
+          }
+        });
       }
       if (p < 0.8 && now - tsunami.lastFoamAt > 150) {
         tsunami.lastFoamAt = now;
@@ -4342,6 +4444,11 @@
         );
       }
       if (p >= 1) {
+        tsunami.carried.forEach(function (item) {
+          landTsunamiCarry(item);
+        });
+        tsunami.carried.clear();
+        tsunami.reserved = [];
         tsunami.active = false;
         tsunamiGroup.visible = false;
         tsunamiFlood.visible = false;
@@ -8752,6 +8859,7 @@
         if (!def || (def.cat !== 'person' && def.cat !== 'animal' && def.cat !== 'char')) continue;
         if (p.damaged) continue;
         if (tornado.active && tornado.captured.has(p.id)) continue;
+        if (tsunami.carried.has(p.id)) continue;
         const g = state.meshById.get(p.id);
         if (!g) continue;
         const phase = g.userData.idlePhase || 0;
