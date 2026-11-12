@@ -888,6 +888,8 @@
   .env-btn:active { transform: scale(.94); }
   .env-btn.is-active { background: var(--ink); color: var(--site-on-accent); }
   .env-btn.is-current:not(.is-active) { box-shadow: inset 0 0 0 1.5px var(--coral); }
+  .env-btn--fun { background: rgba(217, 140, 161, .13); color: #9c6474; }
+  .env-btn--fun:hover { background: rgba(217, 140, 161, .23); }
   .env-btn:focus-visible { outline: 2px solid var(--coral); outline-offset: 1px; }
   @media (max-width: 760px) {
     .celestial { display: none; }
@@ -1003,7 +1005,15 @@
           <button class="env-btn weather-btn" data-weather="sunny" title="晴天" aria-pressed="true">晴</button>
           <button class="env-btn weather-btn" data-weather="rain" title="下雨" aria-pressed="false">雨</button>
           <button class="env-btn weather-btn" data-weather="snow" title="下雪" aria-pressed="false">雪</button>
-          <button class="env-btn weather-btn" data-weather="auto" title="自动更替天气" aria-pressed="false">自动</button>
+          <button class="env-btn weather-btn" data-weather="auto" title="自动更替天气（每 1 分钟）" aria-pressed="false">自动</button>
+        </div>
+      </div>
+      <div class="env-panel__row">
+        <span class="env-panel__label">惊喜</span>
+        <div class="env-options" id="eventRow" role="group" aria-label="随机惊喜">
+          <button class="env-btn event-btn env-btn--fun" data-event="tornado" title="召唤一阵龙卷风" aria-pressed="false">龙卷风</button>
+          <button class="env-btn event-btn env-btn--fun" data-event="rainbow" title="挂一道彩虹" aria-pressed="false">彩虹</button>
+          <button class="env-btn event-btn" data-event="auto" title="自动触发随机惊喜" aria-pressed="true">自动</button>
         </div>
       </div>
     </div>
@@ -1239,6 +1249,7 @@
     const clearBtn = document.getElementById('clearBtn');
     const weatherRowEl = document.getElementById('weatherRow');
     const timeRowEl = document.getElementById('timeRow');
+    const eventRowEl = document.getElementById('eventRow');
     const envControlEl = document.getElementById('envControl');
     const envToggleEl = document.getElementById('envToggle');
     const envPanelEl = document.getElementById('envPanel');
@@ -1265,6 +1276,9 @@
       blueprint: false,
       weather: 'sunny',
       weatherAuto: false,
+      wetness: 0,
+      snowDepth: 0,
+      eventsAuto: true,
       timeOfDay: 'day',
       timeAuto: false
     };
@@ -1387,11 +1401,15 @@
 
     // ---------------------------------------------------------------- environment: time + weather
     const WEATHER_MODES = ['sunny', 'rain', 'snow'];
-    const WEATHER_AUTO_MS = 20000;
+    const WEATHER_AUTO_MS = 60000;
     const WEATHER_LABELS = { sunny: '晴天', rain: '下雨', snow: '下雪' };
     const TIME_MODES = ['morning', 'day', 'dusk', 'night'];
     const TIME_AUTO_MS = 45000;
     const TIME_LABELS = { morning: '早晨', day: '白天', dusk: '黄昏', night: '夜晚' };
+    const FOG_SKY = { morning: 0xf7e7dd, day: 0xe9f0f1, dusk: 0xe6c3cd, night: 0x3a4364 };
+    const FOG_WEATHER = { sunny: 0xffffff, rain: 0xb7c9d6, snow: 0xdce9f1 };
+    scene.fog = new THREE.Fog(0xe9f0f1, 118, 300);
+    let backdropReady = false;
 
     const TIME_LIGHT = {
       morning: {
@@ -1425,7 +1443,25 @@
     let environmentLightTarget = null;
     let weatherAutoTimer = null;
     let timeAutoTimer = null;
+    let randomEventTimer = null;
     let lastWeatherFrame = 0;
+    let wetToastShown = false;
+    let snowToastShown = false;
+
+    // backdrop scenery handles
+    let backdropSnowCaps = [];
+    const backdropHills = [];
+    const snowTintColor = new THREE.Color(0xeef5f2);
+    let houseWindowMats = [];
+    let windmillBlades = null;
+    let balloonGroup = null;
+    const cloudDrifts = [];
+    const floatingIslands = [];
+    let rainbowGroup = null;
+    const rainbowMats = [];
+    let rainbowTimer = 0;
+    const RAINBOW_DURATION = 26000;
+    let backdropLastNow = 0;
 
     const WEATHER_HALF = 31;
     const RAIN_COUNT = 720;
@@ -1522,29 +1558,35 @@
     environmentGroundGroup.add(puddleGroup);
     const puddleGeo = new THREE.CircleGeometry(1, 20);
     const puddleMat = new THREE.MeshStandardMaterial({
-      color: 0x8fc7de,
-      roughness: 0.18,
-      metalness: 0.1,
+      color: 0x75bddb,
+      roughness: 0.16,
+      metalness: 0.12,
       transparent: true,
       opacity: 0.34,
       depthWrite: false
     });
     const puddlePositions = [];
+    const puddleMeshes = [];
     for (let i = 0; i < 20; i++) {
-      const x = (Math.random() * 2 - 1) * 17;
-      const z = (Math.random() * 2 - 1) * 17;
-      puddlePositions.push({ x: x, z: z });
+      const nx = Math.random() * 2 - 1;
+      const nz = Math.random() * 2 - 1;
+      puddlePositions.push({ nx: nx, nz: nz });
       const mesh = new THREE.Mesh(puddleGeo, puddleMat);
       mesh.rotation.x = -Math.PI / 2;
-      mesh.position.set(x, 0.112, z);
-      mesh.scale.set(0.45 + Math.random() * 0.75, 0.3 + Math.random() * 0.5, 1);
+      mesh.position.set(nx * 17, 0.112, nz * 17);
+      const bs = { x: 0.45 + Math.random() * 0.75, y: 0.3 + Math.random() * 0.5 };
+      mesh.userData.baseScale = bs;
+      mesh.scale.set(bs.x, bs.y, 1);
       mesh.renderOrder = 1;
+      mesh.visible = false;
       puddleGroup.add(mesh);
+      puddleMeshes.push(mesh);
     }
     const rippleMeshes = [];
     const rippleGeo = new THREE.RingGeometry(0.35, 0.43, 22);
     for (let i = 0; i < 8; i++) {
-      const p = puddlePositions[(i * 3 + 1) % puddlePositions.length];
+      const puddleIndex = (i * 3 + 1) % puddlePositions.length;
+      const p = puddlePositions[puddleIndex];
       const mat = new THREE.MeshBasicMaterial({
         color: 0xc8ecf7,
         transparent: true,
@@ -1553,8 +1595,10 @@
       });
       const ring = new THREE.Mesh(rippleGeo, mat);
       ring.rotation.x = -Math.PI / 2;
-      ring.position.set(p.x, 0.118, p.z);
+      ring.position.set(p.nx * 17, 0.118, p.nz * 17);
       ring.userData.phase = Math.random();
+      ring.userData.puddleIndex = puddleIndex;
+      ring.visible = false;
       puddleGroup.add(ring);
       rippleMeshes.push(ring);
     }
@@ -1577,10 +1621,11 @@
         ctx.arc(Math.random() * 128, Math.random() * 128, r, 0, Math.PI * 2);
         ctx.fill();
       }
-      return new THREE.CanvasTexture(c);
+      const snowTex = new THREE.CanvasTexture(c);
+      if ('encoding' in snowTex) snowTex.encoding = THREE.sRGBEncoding;
+      return snowTex;
     }
-    const snowGroundMat = new THREE.MeshStandardMaterial({
-      color: 0xffffff,
+    const snowGroundMat = new THREE.MeshStandardMaterial({      color: 0xffffff,
       map: makeSnowGroundTexture(),
       roughness: 0.9,
       metalness: 0,
@@ -1594,6 +1639,7 @@
     snowCover.receiveShadow = true;
     snowCover.renderOrder = 1;
     snowGroundGroup.add(snowCover);
+    const snowMounds = [];
     const snowMoundGeo = new THREE.SphereGeometry(1, 12, 8);
     const snowMoundMat = new THREE.MeshStandardMaterial({
       color: 0xf7fbfd,
@@ -1601,17 +1647,47 @@
       metalness: 0
     });
     for (let i = 0; i < 14; i++) {
+      const nx = Math.random() * 2 - 1;
+      const nz = Math.random() * 2 - 1;
       const mound = new THREE.Mesh(snowMoundGeo, snowMoundMat);
-      mound.position.set((Math.random() * 2 - 1) * 16, 0.1, (Math.random() * 2 - 1) * 16);
-      mound.scale.set(0.25 + Math.random() * 0.35, 0.08 + Math.random() * 0.12, 0.25 + Math.random() * 0.35);
+      mound.position.set(nx * 16, 0.1, nz * 16);
+      const base = {
+        x: 0.25 + Math.random() * 0.35,
+        y: 0.08 + Math.random() * 0.12,
+        z: 0.25 + Math.random() * 0.35
+      };
+      mound.scale.set(base.x, base.y, base.z);
+      mound.userData.baseScale = base;
+      mound.userData.nx = nx;
+      mound.userData.nz = nz;
+      mound.userData.threshold = (i / 14) * 0.56;
+      mound.visible = false;
       mound.castShadow = false;
       mound.receiveShadow = true;
       snowGroundGroup.add(mound);
+      snowMounds.push(mound);
     }
 
     function layoutEnvironmentGrounds() {
       const span = Math.max(1, SIZE - 1.4);
+      const spread = Math.max(2, SIZE / 2 - 2);
       snowCover.scale.set(span, span, 1);
+      for (let i = 0; i < puddleMeshes.length; i++) {
+        const p = puddlePositions[i];
+        puddleMeshes[i].position.x = p.nx * spread;
+        puddleMeshes[i].position.z = p.nz * spread;
+      }
+      for (let i = 0; i < rippleMeshes.length; i++) {
+        const ring = rippleMeshes[i];
+        const p = puddlePositions[ring.userData.puddleIndex];
+        ring.position.x = p.nx * spread;
+        ring.position.z = p.nz * spread;
+      }
+      for (let i = 0; i < snowMounds.length; i++) {
+        const mound = snowMounds[i];
+        mound.position.x = mound.userData.nx * spread;
+        mound.position.z = mound.userData.nz * spread;
+      }
     }
     layoutEnvironmentGrounds();
 
@@ -1683,6 +1759,13 @@
       if (envControlEl) {
         envControlEl.classList.toggle('has-auto', state.timeAuto || state.weatherAuto);
       }
+      if (eventRowEl) {
+        eventRowEl.querySelectorAll('.event-btn').forEach(function (btn) {
+          if (btn.dataset.event !== 'auto') return;
+          btn.classList.toggle('is-active', state.eventsAuto);
+          btn.setAttribute('aria-pressed', state.eventsAuto ? 'true' : 'false');
+        });
+      }
     }
 
     function syncAttachmentVisibility(group) {
@@ -1720,11 +1803,19 @@
       document.body.classList.add('weather-' + state.weather, 'time-' + state.timeOfDay);
       rainLines.visible = state.weather === 'rain';
       snowPoints.visible = state.weather === 'snow';
-      puddleGroup.visible = state.weather === 'rain';
-      snowGroundGroup.visible = state.weather === 'snow';
       environmentLightTarget = computeEnvironmentLight();
       lastWeatherFrame = performance.now();
       layoutEnvironmentGrounds();
+      syncGroundAccumulation(performance.now());
+      if (scene.fog) {
+        const base = new THREE.Color(FOG_SKY[state.timeOfDay] || FOG_SKY.day);
+        if (state.weather !== 'sunny') {
+          base.lerp(new THREE.Color(FOG_WEATHER[state.weather] || 0xffffff),
+            state.timeOfDay === 'night' ? 0.3 : 0.56);
+        }
+        scene.fog.color.copy(base);
+      }
+      if (backdropReady) applyBackdropEnvironment();
       refreshEnvironmentAttachments();
       updateWeatherUI();
     }
@@ -1740,9 +1831,13 @@
     function startWeatherAuto() {
       stopWeatherAuto();
       weatherAutoTimer = setInterval(function () {
+        const prev = state.weather;
         const i = WEATHER_MODES.indexOf(state.weather);
         state.weather = WEATHER_MODES[(i + 1) % WEATHER_MODES.length];
         applyEnvironment();
+        if (prev === 'rain' && state.weather === 'sunny' && state.wetness > 0.06) {
+          if (showRainbow(false)) toast('雨停啦 · 彩虹出来了');
+        }
         scheduleSave();
       }, WEATHER_AUTO_MS);
     }
@@ -1757,12 +1852,15 @@
     }
     function setWeatherMode(mode) {
       if (WEATHER_MODES.indexOf(mode) === -1) return;
+      const prev = state.weather;
       stopWeatherAuto();
       state.weatherAuto = false;
       state.weather = mode;
       applyEnvironment();
+      const madeRainbow = prev === 'rain' && mode === 'sunny' &&
+        state.wetness > 0.06 && showRainbow(false);
       scheduleSave();
-      toast('天气 · ' + WEATHER_LABELS[mode]);
+      toast(madeRainbow ? '天气 · 晴天 · 彩虹出来了' : '天气 · ' + WEATHER_LABELS[mode]);
       playSound('tick');
     }
     function setTimeMode(mode) {
@@ -1779,7 +1877,7 @@
       state.weatherAuto = !state.weatherAuto;
       if (state.weatherAuto) {
         startWeatherAuto();
-        toast('自动天气已开启 · 每 20 秒切换');
+        toast('自动天气已开启 · 每 1 分钟切换');
       } else {
         stopWeatherAuto();
         toast('自动天气已关闭');
@@ -1801,6 +1899,117 @@
       scheduleSave();
       playSound('tick');
     }
+    function toggleEventsAuto() {
+      state.eventsAuto = !state.eventsAuto;
+      if (state.eventsAuto) {
+        scheduleRandomEvent();
+        toast('随机惊喜已开启 · 龙卷风会不时来做客');
+      } else {
+        stopRandomEvents();
+        toast('随机惊喜已关闭');
+      }
+      updateWeatherUI();
+      scheduleSave();
+      playSound('tick');
+    }
+    function triggerEvent(kind) {
+      if (kind === 'tornado') triggerTornado();
+      else if (kind === 'rainbow') showRainbow(true);
+    }
+
+    function smoothstep(a, b, x) {
+      const t = clamp((x - a) / (b - a), 0, 1);
+      return t * t * (3 - 2 * t);
+    }
+
+    function updateAccumulation(dt) {
+      if (state.weather === 'rain') {
+        state.wetness += dt / 24;
+        state.snowDepth = Math.max(0, state.snowDepth - dt / 16);
+      } else if (state.weather === 'snow') {
+        state.snowDepth += dt / 34;
+        state.wetness = Math.max(0, state.wetness - dt / 18);
+      } else {
+        state.wetness = Math.max(0, state.wetness - dt / 55);
+        state.snowDepth = Math.max(0, state.snowDepth - dt / 70);
+      }
+      state.wetness = clamp(state.wetness, 0, 1);
+      state.snowDepth = clamp(state.snowDepth, 0, 1);
+
+      if (state.weather === 'rain' && state.wetness > 0.44 && !wetToastShown) {
+        wetToastShown = true;
+        toast('地面开始积水啦');
+      } else if (state.wetness < 0.06) {
+        wetToastShown = false;
+      }
+      if (state.weather === 'snow' && state.snowDepth > 0.32 && !snowToastShown) {
+        snowToastShown = true;
+        toast('雪已经积起来啦');
+      } else if (state.snowDepth < 0.05) {
+        snowToastShown = false;
+      }
+    }
+
+    function syncGroundAccumulation(now) {
+      const wet = clamp(state.wetness, 0, 1);
+      const snow = clamp(state.snowDepth, 0, 1);
+      const showPuddles = wet > 0.012 && snow < 0.15;
+      puddleGroup.visible = showPuddles;
+      if (showPuddles) {
+        puddleMat.opacity = 0.44 * smoothstep(0.012, 0.5, wet);
+        const reveal = wet * puddleMeshes.length;
+        for (let i = 0; i < puddleMeshes.length; i++) {
+          const mesh = puddleMeshes[i];
+          const local = clamp(reveal - i, 0, 1);
+          mesh.visible = local > 0.004;
+          const grow = 0.4 + 0.6 * smoothstep(0, 1, local);
+          mesh.scale.set(
+            mesh.userData.baseScale.x * grow,
+            mesh.userData.baseScale.y * grow,
+            1
+          );
+        }
+      }
+      const rainActive = state.weather === 'rain' && showPuddles && wet > 0.08;
+      for (let i = 0; i < rippleMeshes.length; i++) {
+        rippleMeshes[i].visible = rainActive;
+      }
+
+      const showSnow = snow > 0.012;
+      snowGroundGroup.visible = showSnow;
+      if (showSnow) {
+        snowGroundMat.opacity = 0.1 + 0.46 * smoothstep(0.012, 0.55, snow);
+        snowCover.position.y = 0.113 + snow * 0.022;
+        for (let i = 0; i < snowMounds.length; i++) {
+          const mound = snowMounds[i];
+          const local = clamp((snow - mound.userData.threshold) / 0.18, 0, 1);
+          mound.visible = local > 0.01;
+          const s = 0.05 + 0.95 * smoothstep(0, 1, local);
+          mound.scale.set(
+            mound.userData.baseScale.x * s,
+            mound.userData.baseScale.y * s,
+            mound.userData.baseScale.z * s
+          );
+          mound.position.y = 0.1 + snow * 0.018;
+        }
+      }
+      for (let i = 0; i < backdropSnowCaps.length; i++) {
+        const cap = backdropSnowCaps[i];
+        const local = clamp((snow - cap.threshold) / 0.26, 0, 1);
+        cap.mesh.visible = local > 0.008;
+        const s = 0.02 + 0.98 * smoothstep(0, 1, local);
+        cap.mesh.scale.set(
+          cap.base.x * s,
+          cap.base.y * s,
+          cap.base.z * s
+        );
+      }
+      const hillDust = smoothstep(0.02, 0.75, snow) * 0.34;
+      for (let i = 0; i < backdropHills.length; i++) {
+        const hill = backdropHills[i];
+        hill.mesh.material.color.copy(hill.baseColor).lerp(snowTintColor, hillDust);
+      }
+    }
 
     function updateWeather(now) {
       if (environmentLightTarget) {
@@ -1815,21 +2024,22 @@
         faceLight.intensity += (t.face - faceLight.intensity) * 0.055;
       }
 
-      if (puddleGroup.visible) {
+      const rawDt = Math.min(0.35, Math.max(0, (now - lastWeatherFrame) / 1000));
+      lastWeatherFrame = now;
+      updateAccumulation(rawDt);
+      syncGroundAccumulation(now);
+
+      if (puddleGroup.visible && state.weather === 'rain') {
         for (let i = 0; i < rippleMeshes.length; i++) {
           const ring = rippleMeshes[i];
           const p = ((now * 0.0012 + ring.userData.phase) % 1);
           ring.scale.setScalar(0.55 + p * 1.7);
-          ring.material.opacity = 0.4 * (1 - p);
+          ring.material.opacity = 0.4 * (1 - p) * smoothstep(0.05, 0.4, state.wetness);
         }
       }
 
-      if (!rainLines.visible && !snowPoints.visible) {
-        lastWeatherFrame = now;
-        return;
-      }
-      const dt = Math.min(0.05, Math.max(0, (now - lastWeatherFrame) / 1000));
-      lastWeatherFrame = now;
+      if (!rainLines.visible && !snowPoints.visible) return;
+      const dt = Math.min(0.06, rawDt);
 
       if (rainLines.visible) {
         for (let i = 0; i < RAIN_COUNT; i++) {
@@ -1862,6 +2072,996 @@
         snowGeo.attributes.position.needsUpdate = true;
       }
     }
+
+    // ---------------------------------------------------------------- backdrop scenery
+    function backdropMat(hex, opts) {
+      return new THREE.MeshStandardMaterial(Object.assign({
+        color: new THREE.Color(hex),
+        roughness: 0.94,
+        metalness: 0
+      }, opts || {}));
+    }
+
+    const backdropGroup = new THREE.Group();
+    backdropGroup.name = 'backdrop';
+    scene.add(backdropGroup);
+
+    function makeMeadowTexture() {
+      const c = document.createElement('canvas');
+      c.width = 512;
+      c.height = 512;
+      const ctx = c.getContext('2d');
+      ctx.fillStyle = '#a9c9a0';
+      ctx.fillRect(0, 0, 512, 512);
+      const blobs = ['#9bbf96', '#bcd9b0', '#a3c59d', '#c6dfb7', '#8fb98f'];
+      for (let i = 0; i < 150; i++) {
+        ctx.fillStyle = blobs[i % blobs.length];
+        ctx.globalAlpha = 0.38 + Math.random() * 0.42;
+        ctx.beginPath();
+        ctx.ellipse(Math.random() * 512, Math.random() * 512,
+          14 + Math.random() * 48, 8 + Math.random() * 30,
+          Math.random() * Math.PI, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      for (let i = 0; i < 90; i++) {
+        ctx.globalAlpha = 0.18;
+        ctx.fillStyle = i % 2 ? '#f2f7e9' : '#91b894';
+        ctx.beginPath();
+        ctx.arc(Math.random() * 512, Math.random() * 512, 1.5 + Math.random() * 5, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.globalAlpha = 1;
+      const tex = new THREE.CanvasTexture(c);
+      tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+      tex.repeat.set(7, 7);
+      if ('encoding' in tex) tex.encoding = THREE.sRGBEncoding;
+      return tex;
+    }
+    const meadow = new THREE.Mesh(
+      new THREE.CircleGeometry(160, 64),
+      new THREE.MeshStandardMaterial({
+        color: 0xffffff,
+        map: makeMeadowTexture(),
+        roughness: 1,
+        metalness: 0
+      })
+    );
+    meadow.rotation.x = -Math.PI / 2;
+    meadow.position.y = -7.8;
+    meadow.receiveShadow = false;
+    backdropGroup.add(meadow);
+
+    // layered pastel hills with snow caps
+    const HILLS = [
+      { x: -64, z: -42, rx: 27, ry: 10, rz: 19, c: 0x96c2a5 },
+      { x: -86, z: -4, rx: 25, ry: 8.5, rz: 18, c: 0xaac6b4 },
+      { x: -38, z: -72, rx: 31, ry: 12, rz: 23, c: 0xa5bfd6 },
+      { x: 8, z: -88, rx: 36, ry: 13, rz: 25, c: 0xb7d1ba },
+      { x: 52, z: -66, rx: 27, ry: 10, rz: 19, c: 0xd9b3c6 },
+      { x: 83, z: -16, rx: 25, ry: 9, rz: 17, c: 0xbfb9da },
+      { x: 73, z: 28, rx: 19, ry: 6.5, rz: 14, c: 0xb2d3c0 },
+      { x: -57, z: 36, rx: 17, ry: 5.5, rz: 13, c: 0xdcbcc8 },
+      { x: -12, z: -118, rx: 44, ry: 16, rz: 30, c: 0xaac8cf },
+      { x: 36, z: -112, rx: 38, ry: 14, rz: 26, c: 0xc7cfb0 }
+    ];
+    const hillGeo = new THREE.SphereGeometry(1, 20, 14);
+    const hillShadowMat = new THREE.MeshBasicMaterial({
+      color: 0x67866e, transparent: true, opacity: 0.12, depthWrite: false
+    });
+    const hillShadowGeo = new THREE.CircleGeometry(1, 24);
+    const snowCapGeo = new THREE.SphereGeometry(1, 18, 10);
+    const snowCapMat = new THREE.MeshStandardMaterial({
+      color: 0xf7fbfd, roughness: 0.94, metalness: 0
+    });
+    for (let i = 0; i < HILLS.length; i++) {
+      const h = HILLS[i];
+      const hillMat = backdropMat(h.c, { flatShading: true, roughness: 1 });
+      const hill = new THREE.Mesh(hillGeo, hillMat);
+      hill.position.set(h.x, -7.8 + h.ry * 0.18, h.z);
+      hill.scale.set(h.rx, h.ry, h.rz);
+      backdropGroup.add(hill);
+      backdropHills.push({ mesh: hill, baseColor: hillMat.color.clone() });
+      const hillShadow = new THREE.Mesh(hillShadowGeo, hillShadowMat);
+      hillShadow.rotation.x = -Math.PI / 2;
+      hillShadow.position.set(h.x, -7.75, h.z);
+      hillShadow.scale.set(h.rx * 0.92, h.rz * 0.74, 1);
+      backdropGroup.add(hillShadow);
+      const capBase = {
+        x: h.rx * 0.34,
+        y: h.ry * 0.24,
+        z: h.rz * 0.34
+      };
+      const cap = new THREE.Mesh(snowCapGeo, snowCapMat);
+      cap.position.set(h.x, hill.position.y + h.ry - h.ry * 0.06, h.z);
+      cap.scale.set(capBase.x * 0.02, capBase.y * 0.02, capBase.z * 0.02);
+      cap.visible = false;
+      backdropGroup.add(cap);
+      backdropSnowCaps.push({
+        mesh: cap,
+        base: capBase,
+        threshold: 0.055 + i * 0.011
+      });
+    }
+
+    // instanced trees on the meadow
+    const treeSpots = [];
+    for (let i = 0; i < 108; i++) {
+      const a = Math.random() * Math.PI * 2;
+      const r = 44 + Math.random() * 94;
+      const x = Math.sin(a) * r;
+      const z = Math.cos(a) * r;
+      let blocked = false;
+      for (let h = 0; h < HILLS.length; h++) {
+        const hh = HILLS[h];
+        const nx = (x - hh.x) / hh.rx;
+        const nz = (z - hh.z) / hh.rz;
+        if (nx * nx + nz * nz < 0.98) { blocked = true; break; }
+      }
+      if (!blocked && Math.hypot(x + 24, z + 36) < 15) blocked = true;
+      if (!blocked && Math.hypot(x - 32, z + 42) < 12) blocked = true;
+      if (!blocked && Math.hypot(x - 48, z + 12) < 8) blocked = true;
+      if (!blocked && Math.hypot(x - 62, z + 2) < 8) blocked = true;
+      if (!blocked && Math.hypot(x + 50, z + 16) < 12) blocked = true;
+      if (blocked) continue;
+      treeSpots.push({
+        x: x, z: z,
+        h: 2.2 + Math.random() * 2.9,
+        r: 1.15 + Math.random() * 1.5,
+        color: i % 4
+      });
+    }
+    const trunkGeo = new THREE.CylinderGeometry(0.17, 0.25, 1, 5);
+    const canopyGeo = new THREE.IcosahedronGeometry(1, 1);
+    const trunkInst = new THREE.InstancedMesh(
+      trunkGeo, backdropMat(0xb29883, { flatShading: true }), treeSpots.length
+    );
+    const treeDummy = new THREE.Object3D();
+    for (let i = 0; i < treeSpots.length; i++) {
+      const t = treeSpots[i];
+      treeDummy.position.set(t.x, -7.8 + t.h * 0.5, t.z);
+      treeDummy.scale.set(1.35, t.h, 1.35);
+      treeDummy.rotation.set(0, 0, 0);
+      treeDummy.updateMatrix();
+      trunkInst.setMatrixAt(i, treeDummy.matrix);
+    }
+    trunkInst.instanceMatrix.needsUpdate = true;
+    trunkInst.frustumCulled = false;
+    backdropGroup.add(trunkInst);
+
+    const treeShadowMat = new THREE.MeshBasicMaterial({
+      color: 0x6c8e74, transparent: true, opacity: 0.1, depthWrite: false
+    });
+    const treeShadowInst = new THREE.InstancedMesh(
+      new THREE.CircleGeometry(1, 14), treeShadowMat, treeSpots.length
+    );
+    for (let i = 0; i < treeSpots.length; i++) {
+      const t = treeSpots[i];
+      treeDummy.position.set(t.x, -7.76, t.z);
+      treeDummy.rotation.set(-Math.PI / 2, 0, 0);
+      treeDummy.scale.set(t.r * 0.9, t.r * 0.62, 1);
+      treeDummy.updateMatrix();
+      treeShadowInst.setMatrixAt(i, treeDummy.matrix);
+    }
+    treeShadowInst.instanceMatrix.needsUpdate = true;
+    treeShadowInst.frustumCulled = false;
+    backdropGroup.add(treeShadowInst);
+
+    const canopyColors = [0xa8d1b9, 0xf0b7b5, 0xb7d7e7, 0xdcc692];
+    for (let c = 0; c < canopyColors.length; c++) {
+      const group = treeSpots.filter(function (t) { return t.color === c; });
+      if (!group.length) continue;
+      const canopyInst = new THREE.InstancedMesh(
+        canopyGeo,
+        backdropMat(canopyColors[c], { flatShading: true, roughness: 0.98 }),
+        group.length
+      );
+      for (let i = 0; i < group.length; i++) {
+        const t = group[i];
+        treeDummy.position.set(t.x, -7.8 + t.h + t.r * 0.34, t.z);
+        treeDummy.scale.set(t.r, t.r * 0.88, t.r);
+        treeDummy.rotation.set(0, Math.random() * Math.PI, 0);
+        treeDummy.updateMatrix();
+        canopyInst.setMatrixAt(i, treeDummy.matrix);
+      }
+      canopyInst.instanceMatrix.needsUpdate = true;
+      canopyInst.frustumCulled = false;
+      backdropGroup.add(canopyInst);
+    }
+
+    // a sleepy toy village
+    const houseBodyGeo = new THREE.BoxGeometry(1, 1, 1);
+    const houseRoofGeo = new THREE.ConeGeometry(1, 1.6, 4);
+    const houseDoorGeo = new THREE.BoxGeometry(1, 1, 1);
+    const houseWindowGeo = new THREE.PlaneGeometry(1, 1);
+    const houseDoorMat = backdropMat(0xa88979);
+    const houseShadowGeo = new THREE.CircleGeometry(1, 18);
+    const houseShadowMat = new THREE.MeshBasicMaterial({
+      color: 0x6c8e74, transparent: true, opacity: 0.11, depthWrite: false
+    });
+    const houseWindowMat = new THREE.MeshStandardMaterial({
+      color: 0xf9e7c0,
+      emissive: new THREE.Color(0xffe0a0),
+      emissiveIntensity: 0.08,
+      roughness: 0.55,
+      metalness: 0
+    });
+    houseWindowMats.push(houseWindowMat);
+
+    function addHouse(x, z, rot, wallHex, roofHex, s) {
+      const g = new THREE.Group();
+      g.position.set(x, -7.8, z);
+      g.rotation.y = rot;
+      const shadow = new THREE.Mesh(houseShadowGeo, houseShadowMat);
+      shadow.rotation.x = -Math.PI / 2;
+      shadow.position.y = 0.012;
+      shadow.scale.set(2.75 * s, 2.2 * s, 1);
+      g.add(shadow);
+      const wallMat = backdropMat(wallHex, { roughness: 0.9 });
+      const body = new THREE.Mesh(houseBodyGeo, wallMat);
+      body.scale.set(3.4 * s, 2.3 * s, 2.7 * s);
+      body.position.y = 1.15 * s;
+      g.add(body);
+      const roof = new THREE.Mesh(houseRoofGeo, backdropMat(roofHex, { flatShading: true }));
+      roof.scale.set(2.75 * s, 1.25 * s, 2.3 * s);
+      roof.rotation.y = Math.PI / 4;
+      roof.position.y = 2.3 * s + 0.92 * s;
+      g.add(roof);
+      const door = new THREE.Mesh(houseDoorGeo, houseDoorMat);
+      door.scale.set(0.68 * s, 1.12 * s, 0.08 * s);
+      door.position.set(0, 0.56 * s, 1.34 * s);
+      g.add(door);
+      for (let i = -1; i <= 1; i += 2) {
+        const win = new THREE.Mesh(houseWindowGeo, houseWindowMat);
+        win.scale.set(0.62 * s, 0.72 * s, 1);
+        win.position.set(i * 1.02 * s, 1.38 * s, 1.365 * s);
+        g.add(win);
+      }
+      const chimney = new THREE.Mesh(houseBodyGeo, wallMat);
+      chimney.scale.set(0.44 * s, 0.95 * s, 0.44 * s);
+      chimney.position.set(1.05 * s, 3.1 * s, -0.45 * s);
+      g.add(chimney);
+      backdropGroup.add(g);
+    }
+
+    const VILLAGE_HOUSES = [
+      [-24, -34, 0.32, 0xf8ead8, 0xd98ca1, 1.0],
+      [-30, -40, 0.08, 0xf2dfc6, 0xb8a6c8, 0.85],
+      [-18, -44, -0.22, 0xf9f1df, 0x87abc4, 1.05],
+      [-34, -27, 0.5, 0xe9a2b2, 0xdcc692, 0.8],
+      [-12, -33, -0.12, 0xf6e7d6, 0xc48e9a, 0.9],
+      [-22, -48, 0.22, 0xf8ead8, 0x9db1cf, 0.9],
+      [24, -38, -0.35, 0xf8ead8, 0x9db1cf, 1.0],
+      [33, -44, -0.08, 0xf2dfc6, 0xd98ca1, 0.85],
+      [43, -35, 0.3, 0xf9f1df, 0xb8a6c8, 0.95]
+    ];
+    for (let i = 0; i < VILLAGE_HOUSES.length; i++) {
+      addHouse.apply(null, VILLAGE_HOUSES[i]);
+    }
+
+    // pond, stepping-stone path and little bushes on the meadow
+    const pond = new THREE.Group();
+    pond.position.set(-50, -7.745, -16);
+    const pondWater = new THREE.Mesh(
+      new THREE.CircleGeometry(9, 34),
+      new THREE.MeshStandardMaterial({
+        color: 0xa6d3dd,
+        roughness: 0.24,
+        metalness: 0.08
+      })
+    );
+    pondWater.rotation.x = -Math.PI / 2;
+    pond.add(pondWater);
+    const pondRim = new THREE.Mesh(
+      new THREE.RingGeometry(9, 10.1, 40),
+      new THREE.MeshStandardMaterial({ color: 0xe4efda, roughness: 1 })
+    );
+    pondRim.rotation.x = -Math.PI / 2;
+    pondRim.position.y = -0.01;
+    pond.add(pondRim);
+    const lilyMat = backdropMat(0x93c4a0, { flatShading: true });
+    for (let i = 0; i < 4; i++) {
+      const lily = new THREE.Mesh(new THREE.CircleGeometry(1, 8), lilyMat);
+      lily.rotation.x = -Math.PI / 2;
+      const a = Math.random() * Math.PI * 2;
+      const r = 2 + Math.random() * 5;
+      lily.position.set(Math.cos(a) * r, 0.012, Math.sin(a) * r);
+      lily.scale.set(0.55 + Math.random() * 0.45, 0.4 + Math.random() * 0.3, 1);
+      pond.add(lily);
+    }
+    backdropGroup.add(pond);
+
+    const pathCurve = new THREE.CatmullRomCurve3([
+      new THREE.Vector3(-33, -7.755, -22),
+      new THREE.Vector3(-28, -7.755, -31),
+      new THREE.Vector3(-21, -7.755, -40),
+      new THREE.Vector3(-13, -7.755, -47),
+      new THREE.Vector3(-3, -7.755, -50)
+    ]);
+    const stoneMat = backdropMat(0xe8ddc7, { roughness: 1 });
+    for (let i = 0; i < 22; i++) {
+      const t = i / 21;
+      const point = pathCurve.getPoint(t);
+      const stone = new THREE.Mesh(new THREE.CircleGeometry(1, 12), stoneMat);
+      stone.rotation.x = -Math.PI / 2;
+      stone.rotation.z = Math.random() * Math.PI;
+      stone.position.copy(point);
+      const s = 0.75 + Math.sin(t * Math.PI) * 0.55 + Math.random() * 0.3;
+      stone.scale.set(s * 1.25, s * 0.9, 1);
+      backdropGroup.add(stone);
+    }
+
+    const bushMats = [
+      backdropMat(0x93c4a0, { flatShading: true }),
+      backdropMat(0xb7d7c3, { flatShading: true }),
+      backdropMat(0xdcbcc8, { flatShading: true })
+    ];
+    for (let i = 0; i < 20; i++) {
+      const a = Math.random() * Math.PI * 2;
+      const r = 12 + Math.random() * 24;
+      const cx = -24 + Math.cos(a) * r;
+      const cz = -36 + Math.sin(a) * r * 0.7;
+      let bad = false;
+      for (let h = 0; h < HILLS.length; h++) {
+        const hh = HILLS[h];
+        const nx = (cx - hh.x) / hh.rx;
+        const nz = (cz - hh.z) / hh.rz;
+        if (nx * nx + nz * nz < 1.05) { bad = true; break; }
+      }
+      if (bad) continue;
+      const bush = new THREE.Mesh(canopyGeo, bushMats[i % bushMats.length]);
+      bush.position.set(cx, -7.8 + 0.45, cz);
+      bush.scale.set(0.55 + Math.random() * 0.5, 0.4 + Math.random() * 0.3, 0.55 + Math.random() * 0.5);
+      bush.rotation.y = Math.random() * Math.PI;
+      backdropGroup.add(bush);
+    }
+
+    // windmill on the right meadow
+    const windmill = new THREE.Group();
+    windmill.position.set(62, -7.8, -2);
+    windmill.rotation.y = -0.95;
+    const windmillTower = new THREE.Mesh(
+      new THREE.CylinderGeometry(1.25, 1.85, 6, 10),
+      backdropMat(0xf6e7d6)
+    );
+    windmillTower.position.y = 3;
+    windmill.add(windmillTower);
+    const windmillCap = new THREE.Mesh(
+      new THREE.ConeGeometry(1.85, 1.7, 8),
+      backdropMat(0xd98ca1, { flatShading: true })
+    );
+    windmillCap.position.y = 6.65;
+    windmill.add(windmillCap);
+    windmillBlades = new THREE.Group();
+    windmillBlades.position.set(0, 6.05, 1.35);
+    const bladeMat = backdropMat(0xf9f1df);
+    for (let i = 0; i < 4; i++) {
+      const arm = new THREE.Group();
+      arm.rotation.z = i * Math.PI / 2;
+      const blade = new THREE.Mesh(new THREE.BoxGeometry(0.36, 3.1, 0.16), bladeMat);
+      blade.position.y = 1.65;
+      arm.add(blade);
+      windmillBlades.add(arm);
+    }
+    const hub = new THREE.Mesh(new THREE.SphereGeometry(0.36, 10, 8), backdropMat(0xc48e9a));
+    windmillBlades.add(hub);
+    windmill.add(windmillBlades);
+    const windmillWindow = new THREE.Mesh(houseWindowGeo, houseWindowMat);
+    windmillWindow.scale.set(0.58, 0.82, 1);
+    windmillWindow.position.set(0, 3.3, 1.72);
+    windmill.add(windmillWindow);
+    backdropGroup.add(windmill);
+
+    // little floating islands
+    function addFloatingIsland(x, y, z, s, rockHex, grassHex) {
+      const g = new THREE.Group();
+      g.position.set(x, y, z);
+      const rock = new THREE.Mesh(
+        new THREE.ConeGeometry(1, 1, 7),
+        backdropMat(rockHex, { flatShading: true })
+      );
+      rock.rotation.x = Math.PI;
+      rock.scale.set(4.2 * s, 5.2 * s, 4.2 * s);
+      rock.position.y = -2.4 * s;
+      g.add(rock);
+      const top = new THREE.Mesh(
+        new THREE.CylinderGeometry(1, 0.9, 1, 9),
+        backdropMat(grassHex, { flatShading: true })
+      );
+      top.scale.set(4.4 * s, 0.72 * s, 4.4 * s);
+      g.add(top);
+      const trunk = new THREE.Mesh(trunkGeo, backdropMat(0xb29883, { flatShading: true }));
+      trunk.scale.set(1.2, 2.8 * s, 1.2);
+      trunk.position.y = 1.5 * s;
+      g.add(trunk);
+      const canopy = new THREE.Mesh(canopyGeo, backdropMat(0xa8d1b9, { flatShading: true }));
+      canopy.scale.setScalar(1.55 * s);
+      canopy.position.y = 3.2 * s;
+      g.add(canopy);
+      g.userData.baseY = y;
+      g.userData.phase = Math.random() * Math.PI * 2;
+      backdropGroup.add(g);
+      floatingIslands.push(g);
+    }
+    // little floating island
+    addFloatingIsland(52, 10.2, -36, 0.74, 0xdfa98f, 0xb3dccb);
+
+    // drifting clouds
+    const cloudGeo = new THREE.SphereGeometry(1, 12, 9);
+    const cloudMat = new THREE.MeshStandardMaterial({
+      color: 0xffffff,
+      roughness: 1,
+      metalness: 0,
+      emissive: new THREE.Color(0xe8eef8),
+      emissiveIntensity: 0.3,
+      flatShading: true
+    });
+    function addCloud(x, y, z, s) {
+      const g = new THREE.Group();
+      const puffs = [
+        [0, 0, 0, 1.2],
+        [-1.15, -0.16, 0.22, 0.82],
+        [1.08, -0.12, -0.14, 0.88],
+        [0.18, 0.52, 0.08, 0.72],
+        [-0.42, -0.3, -0.42, 0.7]
+      ];
+      for (let i = 0; i < puffs.length; i++) {
+        const p = puffs[i];
+        const puff = new THREE.Mesh(cloudGeo, cloudMat);
+        puff.position.set(p[0] * s, p[1] * s, p[2] * s);
+        puff.scale.set(p[3] * s * 1.35, p[3] * s * 0.62, p[3] * s * 0.88);
+        g.add(puff);
+      }
+      g.position.set(x, y, z);
+      g.userData.baseX = x;
+      g.userData.baseY = y;
+      g.userData.baseZ = z;
+      g.userData.phase = Math.random() * Math.PI * 2;
+      backdropGroup.add(g);
+      cloudDrifts.push(g);
+    }
+    addCloud(-48, 21, -40, 2.4);
+    addCloud(-38, 17, -48, 2.0);
+    addCloud(28, 17.5, -50, 2.2);
+    addCloud(48, 20, -38, 2.1);
+    addCloud(-64, 17, 6, 1.8);
+    addCloud(62, 16, 2, 1.7);
+    addCloud(-28, 28, 22, 1.9);
+    addCloud(42, 27, -6, 1.7);
+
+    // hot air balloon
+    balloonGroup = new THREE.Group();
+    const balloonEnvelope = new THREE.Mesh(
+      new THREE.SphereGeometry(1, 20, 14),
+      backdropMat(0xf0b7b5, { roughness: 0.62 })
+    );
+    balloonEnvelope.scale.set(3.1, 3.6, 3.1);
+    balloonEnvelope.position.y = 2.3;
+    balloonGroup.add(balloonEnvelope);
+    const balloonBandColors = [0xf9f1df, 0xb3dccb];
+    for (let i = 0; i < 2; i++) {
+      const offset = i === 0 ? 1.1 : -0.9;
+      const radius = 3.1 * Math.sqrt(Math.max(0.2, 1 - (offset / 3.6) * (offset / 3.6)));
+      const band = new THREE.Mesh(
+        new THREE.TorusGeometry(radius, 0.2, 6, 30),
+        backdropMat(balloonBandColors[i], { roughness: 0.7 })
+      );
+      band.rotation.x = Math.PI / 2;
+      band.position.y = 2.3 + offset;
+      balloonGroup.add(band);
+    }
+    const basket = new THREE.Mesh(
+      new THREE.BoxGeometry(1.25, 0.9, 1.25),
+      backdropMat(0xd4b49b)
+    );
+    basket.position.y = -2.1;
+    balloonGroup.add(basket);
+    const ropeMat = new THREE.LineBasicMaterial({ color: 0x9c8478, transparent: true, opacity: 0.6 });
+    const ropePoints = [];
+    for (let i = -1; i <= 1; i += 2) {
+      for (let j = -1; j <= 1; j += 2) {
+        ropePoints.push(new THREE.Vector3(i * 0.55, -1.65, j * 0.55));
+        ropePoints.push(new THREE.Vector3(i * 1.25, 0.4, j * 1.25));
+      }
+    }
+    balloonGroup.add(new THREE.LineSegments(
+      new THREE.BufferGeometry().setFromPoints(ropePoints),
+      ropeMat
+    ));
+    balloonGroup.position.set(-66, 6.8, -14);
+    balloonGroup.scale.setScalar(1.1);
+    backdropGroup.add(balloonGroup);
+
+    // rainbow that appears after the rain
+    rainbowGroup = new THREE.Group();
+    rainbowGroup.position.set(-2, -7.6, -56);
+    rainbowGroup.rotation.y = 0.16;
+    const rainbowColors = [0xf2a9bb, 0xf6c6a8, 0xf4e09b, 0xb3dccb, 0xafcfe8, 0xccbbe0];
+    for (let i = 0; i < rainbowColors.length; i++) {
+      const mat = new THREE.MeshBasicMaterial({
+        color: rainbowColors[i],
+        transparent: true,
+        opacity: 0,
+        depthWrite: false,
+        fog: false
+      });
+      const arc = new THREE.Mesh(
+        new THREE.TorusGeometry(24 - i * 1.0, 0.42, 6, 64, Math.PI),
+        mat
+      );
+      rainbowGroup.add(arc);
+      rainbowMats.push(mat);
+    }
+    rainbowGroup.visible = false;
+    backdropGroup.add(rainbowGroup);
+
+    function applyBackdropEnvironment() {
+      const glow = isNightTime() ? 1.25 : (isDuskTime() ? 0.92 : (state.weather !== 'sunny' ? 0.42 : 0.07));
+      for (let i = 0; i < houseWindowMats.length; i++) {
+        houseWindowMats[i].emissiveIntensity = glow;
+      }
+      if (rainbowGroup && rainbowTimer > 0 && state.weather !== 'sunny') {
+        rainbowTimer = 0;
+        rainbowGroup.visible = false;
+        for (let i = 0; i < rainbowMats.length; i++) rainbowMats[i].opacity = 0;
+      }
+    }
+
+    function showRainbow(manual) {
+      if (!rainbowGroup) return false;
+      rainbowTimer = RAINBOW_DURATION;
+      rainbowGroup.visible = true;
+      if (manual) {
+        toast('送你一道彩虹');
+        playSound('tick');
+      }
+      return true;
+    }
+
+    function updateBackdrop(now) {
+      let dt = 0;
+      if (backdropLastNow) dt = Math.min(0.35, Math.max(0, (now - backdropLastNow) / 1000));
+      backdropLastNow = now;
+
+      for (let i = 0; i < cloudDrifts.length; i++) {
+        const cloud = cloudDrifts[i];
+        const phase = cloud.userData.phase;
+        cloud.position.x = cloud.userData.baseX + Math.sin(now * 0.000045 + phase) * 4.6;
+        cloud.position.y = cloud.userData.baseY + Math.sin(now * 0.00007 + phase * 1.7) * 0.7;
+        cloud.position.z = cloud.userData.baseZ + Math.cos(now * 0.000038 + phase) * 2.8;
+      }
+      for (let i = 0; i < floatingIslands.length; i++) {
+        const island = floatingIslands[i];
+        island.position.y = island.userData.baseY + Math.sin(now * 0.00042 + island.userData.phase) * 0.55;
+      }
+      if (balloonGroup) {
+        balloonGroup.position.x = -66 + Math.sin(now * 0.00003) * 7.5;
+        balloonGroup.position.y = 6.8 + Math.sin(now * 0.00012) * 0.9;
+      }
+      if (windmillBlades) {
+        windmillBlades.rotation.z = -(now * 0.00042);
+      }
+      if (rainbowTimer > 0) {
+        rainbowTimer = Math.max(0, rainbowTimer - dt * 1000);
+        const elapsed = RAINBOW_DURATION - rainbowTimer;
+        const fade = Math.min(smoothstep(0, 1500, elapsed), smoothstep(0, 3800, rainbowTimer));
+        for (let i = 0; i < rainbowMats.length; i++) {
+          rainbowMats[i].opacity = 0.52 * fade;
+        }
+        if (rainbowTimer <= 0) rainbowGroup.visible = false;
+      }
+    }
+
+    // ---------------------------------------------------------------- tornado event
+    const tornadoGroup = new THREE.Group();
+    tornadoGroup.visible = false;
+    scene.add(tornadoGroup);
+    const tornadoOpacityMats = [];
+    function registerTornadoMat(mat, base) {
+      mat.userData.tornadoBaseOpacity = base;
+      tornadoOpacityMats.push(mat);
+      return mat;
+    }
+
+    const tornadoCones = [];
+    for (let i = 0; i < 4; i++) {
+      const bottomR = 0.85 + i * 0.85;
+      const topR = 1.55 + i * 0.95;
+      const height = 3.2;
+      const cone = new THREE.Mesh(
+        new THREE.CylinderGeometry(topR, bottomR, height, 24, 1, true),
+        registerTornadoMat(new THREE.MeshBasicMaterial({
+          color: i % 2 === 0 ? 0xe9ddf1 : 0xf4e6ec,
+          transparent: true,
+          opacity: 0.12,
+          depthWrite: false,
+          side: THREE.DoubleSide,
+          fog: false
+        }), 0.12)
+      );
+      cone.position.y = 1.6 + i * 3.1;
+      cone.userData.baseX = 0;
+      cone.userData.baseZ = 0;
+      cone.userData.phase = i * 1.3;
+      tornadoGroup.add(cone);
+      tornadoCones.push(cone);
+    }
+
+    function makeTornadoSwirlTexture() {
+      const c = document.createElement('canvas');
+      c.width = 128;
+      c.height = 256;
+      const ctx = c.getContext('2d');
+      ctx.clearRect(0, 0, 128, 256);
+      for (let i = 0; i < 26; i++) {
+        const x = Math.random() * 128;
+        const y = Math.random() * 256;
+        ctx.strokeStyle = 'rgba(255,255,255,' + (0.14 + Math.random() * 0.3).toFixed(3) + ')';
+        ctx.lineWidth = 2 + Math.random() * 6;
+        ctx.beginPath();
+        ctx.moveTo(x, y);
+        ctx.bezierCurveTo(x + 18, y + 22, x - 16, y + 54, x + 5, y + 86);
+        ctx.stroke();
+      }
+      const tex = new THREE.CanvasTexture(c);
+      tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+      tex.repeat.set(2, 1);
+      return tex;
+    }
+    const tornadoRibbons = [];
+    for (let i = 0; i < 2; i++) {
+      const tex = makeTornadoSwirlTexture();
+      const ribbon = new THREE.Mesh(
+        new THREE.CylinderGeometry(5.2, 0.7, 12.8, 36, 1, true),
+        registerTornadoMat(new THREE.MeshBasicMaterial({
+          map: tex,
+          color: i === 0 ? 0xc2a9dd : 0xf0aec4,
+          transparent: true,
+          opacity: i === 0 ? 0.62 : 0.46,
+          depthWrite: false,
+          side: THREE.DoubleSide,
+          fog: false
+        }), i === 0 ? 0.62 : 0.46)
+      );
+      ribbon.position.y = 6.5;
+      ribbon.rotation.y = i * Math.PI;
+      tornadoGroup.add(ribbon);
+      tornadoRibbons.push({
+        mesh: ribbon,
+        tex: tex,
+        speedX: i === 0 ? 0.00012 : -0.00009,
+        speedY: i === 0 ? -0.00022 : 0.00017
+      });
+    }
+
+    const tornadoSwirls = [];
+    for (let i = 0; i < 6; i++) {
+      const holder = new THREE.Group();
+      holder.position.y = 1.2 + i * 1.95;
+      holder.rotation.z = (i % 2 ? 1 : -1) * (0.04 + i * 0.008);
+      const arc = new THREE.Mesh(
+        new THREE.TorusGeometry(1.2 + i * 0.63, 0.12, 5, 30, Math.PI * 1.35),
+        registerTornadoMat(new THREE.MeshBasicMaterial({
+          color: i % 2 === 0 ? 0xfff1f5 : 0xe8dcef,
+          transparent: true,
+          opacity: 0.46,
+          depthWrite: false,
+          side: THREE.DoubleSide,
+          fog: false
+        }), 0.46)
+      );
+      arc.rotation.x = Math.PI / 2;
+      holder.add(arc);
+      tornadoGroup.add(holder);
+      tornadoSwirls.push({
+        holder: holder,
+        speed: (i % 2 ? -1 : 1) * (0.9 + i * 0.16),
+        phase: i * 1.7
+      });
+    }
+
+    const tornadoTop = new THREE.Group();
+    tornadoTop.position.y = 13.05;
+    const tornadoCloudMat = registerTornadoMat(new THREE.MeshStandardMaterial({
+      color: 0xf6edf3,
+      roughness: 1,
+      metalness: 0,
+      transparent: true,
+      opacity: 0.85,
+      depthWrite: false,
+      emissive: new THREE.Color(0xe9deea),
+      emissiveIntensity: 0.18
+    }), 0.85);
+    const tornadoPuffs = [
+      [0, 0, 0, 2.5],
+      [-2.2, -0.2, 0.4, 1.65],
+      [1.9, -0.1, 0.2, 1.85],
+      [0.2, 0.7, -0.6, 1.55],
+      [-0.3, -0.35, -1.5, 1.45]
+    ];
+    for (let i = 0; i < tornadoPuffs.length; i++) {
+      const p = tornadoPuffs[i];
+      const puff = new THREE.Mesh(cloudGeo, tornadoCloudMat);
+      puff.position.set(p[0], p[1], p[2]);
+      puff.scale.set(p[3] * 1.35, p[3] * 0.6, p[3] * 0.9);
+      tornadoTop.add(puff);
+    }
+    tornadoGroup.add(tornadoTop);
+
+    const tornadoDust = new THREE.Mesh(
+      new THREE.CircleGeometry(4.8, 30),
+      registerTornadoMat(new THREE.MeshBasicMaterial({
+        map: glowTexture,
+        color: 0xcfb7c6,
+        transparent: true,
+        opacity: 0.75,
+        depthWrite: false,
+        fog: false
+      }), 0.75)
+    );
+    tornadoDust.rotation.x = -Math.PI / 2;
+    tornadoDust.position.y = 0.015;
+    tornadoGroup.add(tornadoDust);
+
+    const TORNADO_DEBRIS = 56;
+    const tornadoDebris = new THREE.InstancedMesh(
+      new THREE.OctahedronGeometry(0.24, 0),
+      registerTornadoMat(new THREE.MeshBasicMaterial({
+        color: 0xffffff,
+        transparent: true,
+        opacity: 0.95,
+        depthWrite: false,
+        fog: false
+      }), 0.95),
+      TORNADO_DEBRIS
+    );
+    const tornadoDebrisColors = [0xd9b6a0, 0xe9a9b8, 0xb3dccb, 0xf4e09b];
+    for (let i = 0; i < TORNADO_DEBRIS; i++) {
+      tornadoDebris.setColorAt(i, new THREE.Color(tornadoDebrisColors[i % tornadoDebrisColors.length]));
+    }
+    if (tornadoDebris.instanceColor) tornadoDebris.instanceColor.needsUpdate = true;
+    tornadoDebris.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+    tornadoDebris.frustumCulled = false;
+    tornadoGroup.add(tornadoDebris);
+    const tornadoDebrisSeeds = [];
+    for (let i = 0; i < TORNADO_DEBRIS; i++) {
+      const y = 0.5 + Math.random() * 11.4;
+      tornadoDebrisSeeds.push({
+        angle: Math.random() * Math.PI * 2,
+        radius: 0.9 + (y / 12) * 3.2 + Math.random() * 0.6,
+        y: y,
+        speed: 0.9 + Math.random() * 1.7,
+        size: 0.55 + Math.random() * 1.0,
+        phase: Math.random() * Math.PI * 2
+      });
+    }
+
+    const tornado = {
+      active: false,
+      startTime: 0,
+      duration: 10800,
+      startX: 0,
+      startZ: 0,
+      endX: 0,
+      endZ: 0,
+      cx: 0,
+      cz: 0,
+      fade: 0,
+      captured: new Map()
+    };
+    const tornadoDummy = new THREE.Object3D();
+
+    function isLiftableProp(p) {
+      const def = PROP_MAP[p.propType];
+      if (!def) return false;
+      return def.cat === 'person' || def.cat === 'animal' ||
+        def.cat === 'vehicle' || def.cat === 'char';
+    }
+
+    function triggerTornado() {
+      if (tornado.active) {
+        toast('龙卷风还在转圈呢');
+        return false;
+      }
+      let targetX = 0;
+      let targetZ = 0;
+      const candidates = state.props.filter(isLiftableProp);
+      if (candidates.length) {
+        const pick = candidates[Math.floor(Math.random() * candidates.length)];
+        const def = PROP_MAP[pick.propType];
+        const dims = effDims(def, pick.rot);
+        targetX = worldX(pick.gx, dims[0]);
+        targetZ = worldZ(pick.gz, dims[1]);
+      } else {
+        const a = Math.random() * Math.PI * 2;
+        targetX = Math.sin(a) * 3;
+        targetZ = Math.cos(a) * 3;
+      }
+      const R = Math.max(6, SIZE / 2 - 1.2);
+      let rr = Math.hypot(targetX, targetZ);
+      if (rr > R * 0.9) {
+        const k = (R * 0.9) / rr;
+        targetX *= k;
+        targetZ *= k;
+        rr = R * 0.9;
+      }
+      const dirAngle = Math.atan2(targetX, targetZ) + Math.PI / 2 + (Math.random() * 0.5 - 0.25);
+      const dx = Math.sin(dirAngle);
+      const dz = Math.cos(dirAngle);
+      const half = Math.sqrt(Math.max(4, R * R - rr * rr));
+      tornado.startX = targetX - dx * half;
+      tornado.startZ = targetZ - dz * half;
+      tornado.endX = targetX + dx * half;
+      tornado.endZ = targetZ + dz * half;
+      if (Math.random() < 0.5) {
+        const sx = tornado.startX;
+        const sz = tornado.startZ;
+        tornado.startX = tornado.endX;
+        tornado.startZ = tornado.endZ;
+        tornado.endX = sx;
+        tornado.endZ = sz;
+      }
+      tornado.captured.clear();
+      tornado.active = true;
+      tornado.startTime = performance.now();
+      tornado.fade = 0;
+      tornadoGroup.visible = true;
+      tornadoGroup.position.set(tornado.startX, 0.12, tornado.startZ);
+      toast('龙卷风来啦 · 小心被吹起来');
+      playSound('tornado');
+      return true;
+    }
+
+    function restoreTornadoProp(item) {
+      const g = item.group;
+      if (!g) return;
+      g.position.set(item.px, item.py, item.pz);
+      g.rotation.set(item.rx, item.ry, item.rz);
+      g.scale.set(item.sx, item.sy, item.sz);
+    }
+
+    function finishTornado() {
+      tornado.captured.forEach(restoreTornadoProp);
+      tornado.captured.clear();
+      tornado.active = false;
+      tornadoGroup.visible = false;
+      for (let i = 0; i < tornadoOpacityMats.length; i++) {
+        tornadoOpacityMats[i].opacity = 0;
+      }
+    }
+
+    function updateTornado(now) {
+      if (!tornado.active) return;
+      const p = clamp((now - tornado.startTime) / tornado.duration, 0, 1);
+      const ease = p < 0.5 ? 2 * p * p : 1 - Math.pow(-2 * p + 2, 2) / 2;
+      const cx = tornado.startX + (tornado.endX - tornado.startX) * ease +
+        Math.sin(now * 0.0011) * 0.35;
+      const cz = tornado.startZ + (tornado.endZ - tornado.startZ) * ease +
+        Math.cos(now * 0.0009) * 0.3;
+      tornado.cx = cx;
+      tornado.cz = cz;
+      const fade = smoothstep(0, 0.1, p) * (1 - smoothstep(0.88, 1, p));
+      tornado.fade = fade;
+      tornadoGroup.position.set(cx, 0.12, cz);
+      tornadoGroup.visible = fade > 0.004;
+      for (let i = 0; i < tornadoOpacityMats.length; i++) {
+        const mat = tornadoOpacityMats[i];
+        mat.opacity = mat.userData.tornadoBaseOpacity * fade;
+      }
+      for (let i = 0; i < tornadoCones.length; i++) {
+        const cone = tornadoCones[i];
+        cone.position.x = Math.sin(now * 0.0012 + cone.userData.phase) * (0.06 + i * 0.03);
+        cone.position.z = Math.cos(now * 0.0011 + cone.userData.phase) * (0.06 + i * 0.03);
+      }
+      for (let i = 0; i < tornadoSwirls.length; i++) {
+        const swirl = tornadoSwirls[i];
+        swirl.holder.rotation.y = now * 0.001 * swirl.speed + swirl.phase;
+      }
+      for (let i = 0; i < tornadoRibbons.length; i++) {
+        const ribbon = tornadoRibbons[i];
+        ribbon.mesh.rotation.y = now * 0.00024 * (i === 0 ? 1 : -1);
+        ribbon.tex.offset.x = now * ribbon.speedX;
+        ribbon.tex.offset.y = now * ribbon.speedY;
+      }
+      tornadoTop.rotation.y = now * 0.00035;
+      tornadoDust.scale.setScalar(0.9 + Math.sin(now * 0.0026) * 0.08);
+      for (let i = 0; i < tornadoDebrisSeeds.length; i++) {
+        const seed = tornadoDebrisSeeds[i];
+        const angle = seed.angle + now * 0.001 * seed.speed;
+        const radius = seed.radius + Math.sin(now * 0.0011 + seed.phase) * 0.16;
+        tornadoDummy.position.set(
+          Math.cos(angle) * radius,
+          seed.y + Math.sin(now * 0.0016 + seed.phase) * 0.35,
+          Math.sin(angle) * radius
+        );
+        tornadoDummy.rotation.set(angle * 1.3, angle * 2.1, angle * 0.7);
+        tornadoDummy.scale.setScalar(seed.size);
+        tornadoDummy.updateMatrix();
+        tornadoDebris.setMatrixAt(i, tornadoDummy.matrix);
+      }
+      tornadoDebris.instanceMatrix.needsUpdate = true;
+
+      if (p > 0.02 && p < 0.82 && tornado.captured.size < 14) {
+        for (let i = 0; i < state.props.length; i++) {
+          const prop = state.props[i];
+          if (tornado.captured.has(prop.id) || !isLiftableProp(prop)) continue;
+          const g = state.meshById.get(prop.id);
+          if (!g || !g.parent) continue;
+          const dxp = g.position.x - cx;
+          const dzp = g.position.z - cz;
+          const dist = Math.hypot(dxp, dzp);
+          if (dist > 5.2 || g.position.y > 10) continue;
+          tornado.captured.set(prop.id, {
+            group: g,
+            px: g.position.x,
+            py: g.position.y,
+            pz: g.position.z,
+            rx: g.rotation.x,
+            ry: g.rotation.y,
+            rz: g.rotation.z,
+            sx: g.scale.x,
+            sy: g.scale.y,
+            sz: g.scale.z,
+            caughtAt: now,
+            phase: Math.atan2(dzp, dxp),
+            radius: clamp(dist, 0.8, 4.2),
+            lift: 3.2 + Math.random() * 4.0,
+            spin: (0.8 + Math.random() * 1.1) * (Math.random() < 0.5 ? -1 : 1),
+            tumble: 0.5 + Math.random() * 0.9
+          });
+          if (tornado.captured.size >= 14) break;
+        }
+      }
+
+      const settle = smoothstep(0.76, 0.97, p);
+      const envelope = smoothstep(0.02, 0.16, p) * (1 - smoothstep(0.76, 0.96, p));
+      tornado.captured.forEach(function (item, id) {
+        const g = state.meshById.get(id);
+        if (g !== item.group || !g.parent) return;
+        const ageRamp = smoothstep(0, 1, (now - item.caughtAt) / 500);
+        const lift = ageRamp * envelope;
+        const angle = item.phase + (now - item.caughtAt) * 0.001 * item.spin * 1.9;
+        const radius = item.radius * (0.82 + 0.18 * Math.sin(now * 0.002 + item.phase));
+        const swirlX = cx + Math.cos(angle) * radius;
+        const swirlZ = cz + Math.sin(angle) * radius;
+        const swirlY = item.py + 0.8 + item.lift * lift +
+          Math.sin(now * 0.0022 + item.phase) * 0.3 * lift;
+        g.position.set(
+          swirlX * (1 - settle) + item.px * settle,
+          swirlY * (1 - settle) + item.py * settle,
+          swirlZ * (1 - settle) + item.pz * settle
+        );
+        const spinAngle = (now - item.caughtAt) * 0.001 * item.spin * 2.1;
+        g.rotation.y = item.ry + spinAngle * (1 - settle);
+        g.rotation.x = item.rx + Math.sin(now * 0.0021 + item.phase) * item.tumble * 0.26 * (1 - settle);
+        g.rotation.z = item.rz + Math.cos(now * 0.0018 + item.phase) * item.tumble * 0.24 * (1 - settle);
+        const wobble = 1 + Math.sin(now * 0.004 + item.phase) * 0.045 * (1 - settle);
+        g.scale.set(
+          item.sx * wobble * (1 - settle) + item.sx * settle,
+          item.sy * wobble * (1 - settle) + item.sy * settle,
+          item.sz * wobble * (1 - settle) + item.sz * settle
+        );
+      });
+
+      if (p >= 1) finishTornado();
+    }
+
+    function stopRandomEvents() {
+      if (randomEventTimer) clearTimeout(randomEventTimer);
+      randomEventTimer = null;
+    }
+    function scheduleRandomEvent() {
+      stopRandomEvents();
+      if (!state.eventsAuto) return;
+      const delay = 60000 + Math.random() * 50000;
+      randomEventTimer = setTimeout(function () {
+        randomEventTimer = null;
+        if (!state.eventsAuto) return;
+        if (!document.hidden && !tornado.active) triggerTornado();
+        scheduleRandomEvent();
+      }, delay);
+    }
+
+    backdropReady = true;
 
     // ---------------------------------------------------------------- helpers
     function mergeGeometries(list) {
@@ -1957,7 +3157,7 @@
       }
 
       if (groundShadowMesh) {
-        groundShadowMesh.scale.setScalar(SIZE / 40);
+        groundShadowMesh.scale.setScalar(SIZE / 34);
       }
 
       const shadowSize = SIZE / 2 + 8;
@@ -2007,17 +3207,17 @@
       c.width = c.height = 256;
       const ctx = c.getContext('2d');
       const g = ctx.createRadialGradient(128, 128, 8, 128, 128, 128);
-      g.addColorStop(0, 'rgba(96, 82, 92, .24)');
-      g.addColorStop(0.55, 'rgba(96, 82, 92, .11)');
-      g.addColorStop(1, 'rgba(96, 82, 92, 0)');
+      g.addColorStop(0, 'rgba(78, 72, 82, .3)');
+      g.addColorStop(0.55, 'rgba(78, 72, 82, .15)');
+      g.addColorStop(1, 'rgba(78, 72, 82, 0)');
       ctx.fillStyle = g;
       ctx.fillRect(0, 0, 256, 256);
       const tex = new THREE.CanvasTexture(c);
       const mat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false });
-      groundShadowMesh = new THREE.Mesh(new THREE.PlaneGeometry(72, 72), mat);
+      groundShadowMesh = new THREE.Mesh(new THREE.PlaneGeometry(100, 100), mat);
       groundShadowMesh.rotation.x = -Math.PI / 2;
-      groundShadowMesh.position.y = -0.55;
-      groundShadowMesh.scale.setScalar(SIZE / 40);
+      groundShadowMesh.position.y = -7.62;
+      groundShadowMesh.scale.setScalar(SIZE / 34);
       scene.add(groundShadowMesh);
     })();
 
@@ -4722,6 +5922,9 @@
           blueprint: state.blueprint,
           weather: state.weather,
           weatherAuto: state.weatherAuto,
+          wetness: state.wetness,
+          snowDepth: state.snowDepth,
+          eventsAuto: state.eventsAuto,
           timeOfDay: state.timeOfDay,
           timeAuto: state.timeAuto
         }));
@@ -4782,6 +5985,15 @@
           gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.09);
           osc.start(t);
           osc.stop(t + 0.1);
+        } else if (kind === 'tornado') {
+          osc.type = 'sawtooth';
+          osc.frequency.setValueAtTime(150, t);
+          osc.frequency.exponentialRampToValueAtTime(82, t + 0.9);
+          gain.gain.setValueAtTime(0.0001, t);
+          gain.gain.exponentialRampToValueAtTime(0.032, t + 0.16);
+          gain.gain.exponentialRampToValueAtTime(0.0001, t + 1.05);
+          osc.start(t);
+          osc.stop(t + 1.12);
         } else {
           osc.type = 'triangle';
           osc.frequency.setValueAtTime(760, t);
@@ -5604,6 +6816,14 @@
         else setTimeMode(btn.dataset.time);
       });
     }
+    if (eventRowEl) {
+      eventRowEl.addEventListener('click', function (e) {
+        const btn = e.target.closest('.event-btn');
+        if (!btn) return;
+        if (btn.dataset.event === 'auto') toggleEventsAuto();
+        else triggerEvent(btn.dataset.event);
+      });
+    }
     function setEnvPanel(open) {
       if (!envPanelEl || !envToggleEl) return;
       envPanelEl.hidden = !open;
@@ -5645,7 +6865,7 @@
         return;
       }
       modalTitleEl.textContent = '确定清空底板吗？';
-      modalBodyEl.textContent = '所有砖块、角色和家具都会被移除，不过还可以用撤销把它们找回来。';
+      modalBodyEl.textContent = '所有砖块、角色和车辆都会被移除，不过还可以用撤销把它们找回来。';
       modalConfirmEl.textContent = '清空';
       pendingModalAction = function () {
         const before = snapshot();
@@ -5973,6 +7193,9 @@
         state.blueprint = !!data.blueprint;
         if (WEATHER_MODES.indexOf(data.weather) !== -1) state.weather = data.weather;
         state.weatherAuto = !!data.weatherAuto;
+        if (typeof data.wetness === 'number') state.wetness = clamp(data.wetness, 0, 1);
+        if (typeof data.snowDepth === 'number') state.snowDepth = clamp(data.snowDepth, 0, 1);
+        state.eventsAuto = data.eventsAuto !== false;
         if (TIME_MODES.indexOf(data.timeOfDay) !== -1) state.timeOfDay = data.timeOfDay;
         state.timeAuto = !!data.timeAuto;
 
@@ -6005,6 +7228,9 @@
       applyEnvironment();
       if (state.weatherAuto) startWeatherAuto();
       if (state.timeAuto) startTimeAuto();
+      wetToastShown = state.wetness > 0.4;
+      snowToastShown = state.snowDepth > 0.3;
+      if (state.eventsAuto) scheduleRandomEvent();
       updateWeatherUI();
 
       if (state.bricks.length + state.props.length === 0 && !state.blueprint) {
@@ -6042,6 +7268,7 @@
         const p = state.props[i];
         const def = PROP_MAP[p.propType];
         if (!def || (def.cat !== 'person' && def.cat !== 'animal' && def.cat !== 'char')) continue;
+        if (tornado.active && tornado.captured.has(p.id)) continue;
         const g = state.meshById.get(p.id);
         if (!g) continue;
         const phase = g.userData.idlePhase || 0;
@@ -6066,6 +7293,8 @@
       animateSpawns(now);
       updateCharacterIdle(now);
       updateWeather(now);
+      updateTornado(now);
+      updateBackdrop(now);
 
       if (blueprintMesh && blueprintMesh.visible) {
         blueprintMesh.material.opacity = 0.13 + Math.sin(now * 0.0016) * 0.025;
