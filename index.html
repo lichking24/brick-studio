@@ -756,6 +756,36 @@
   body.time-night.weather-snow .weather-overlay {
     background: linear-gradient(180deg, rgba(62, 85, 112, .27), rgba(82, 103, 123, .12));
   }
+  .lightning-flash {
+    position: fixed;
+    inset: 0;
+    z-index: 6;
+    pointer-events: none;
+    background: #fffdf3;
+    opacity: 0;
+  }
+  .lightning-flash.is-flash {
+    animation: lightningFlash .5s ease-out both;
+  }
+  @keyframes lightningFlash {
+    0% { opacity: 0; }
+    7% { opacity: .92; }
+    18% { opacity: .18; }
+    33% { opacity: .74; }
+    48% { opacity: .1; }
+    100% { opacity: 0; }
+  }
+  #stage.is-quaking {
+    animation: quakeShake .11s linear 14 both;
+  }
+  @keyframes quakeShake {
+    0% { transform: translate3d(0, 0, 0) rotate(0deg); }
+    18% { transform: translate3d(-5px, 3px, 0) rotate(-.16deg); }
+    36% { transform: translate3d(5px, -4px, 0) rotate(.18deg); }
+    54% { transform: translate3d(-4px, -2px, 0) rotate(-.12deg); }
+    72% { transform: translate3d(4px, 3px, 0) rotate(.14deg); }
+    100% { transform: translate3d(0, 0, 0) rotate(0deg); }
+  }
   .env-backdrop {
     position: fixed;
     inset: 0;
@@ -890,6 +920,8 @@
   .env-btn.is-current:not(.is-active) { box-shadow: inset 0 0 0 1.5px var(--coral); }
   .env-btn--fun { background: rgba(217, 140, 161, .13); color: #9c6474; }
   .env-btn--fun:hover { background: rgba(217, 140, 161, .23); }
+  .env-btn--danger { background: rgba(203, 113, 101, .12); color: #a55f57; }
+  .env-btn--danger:hover { background: rgba(203, 113, 101, .22); }
   .env-btn:focus-visible { outline: 2px solid var(--coral); outline-offset: 1px; }
   @media (max-width: 760px) {
     .celestial { display: none; }
@@ -920,6 +952,7 @@
   <div class="stars" id="stars" aria-hidden="true"></div>
   <div class="celestial" aria-hidden="true"></div>
   <div class="weather-overlay" id="weatherOverlay" aria-hidden="true"></div>
+  <div class="lightning-flash" id="lightningFlash" aria-hidden="true"></div>
 
   <header class="topbar">
     <div class="brand">
@@ -1013,7 +1046,15 @@
         <div class="env-options" id="eventRow" role="group" aria-label="随机惊喜">
           <button class="env-btn event-btn env-btn--fun" data-event="tornado" title="召唤一阵龙卷风" aria-pressed="false">龙卷风</button>
           <button class="env-btn event-btn env-btn--fun" data-event="rainbow" title="挂一道彩虹" aria-pressed="false">彩虹</button>
-          <button class="env-btn event-btn" data-event="auto" title="自动触发随机惊喜" aria-pressed="true">自动</button>
+          <button class="env-btn event-btn" data-event="auto" title="自动触发随机灾害与惊喜" aria-pressed="true">自动</button>
+        </div>
+      </div>
+      <div class="env-panel__row">
+        <span class="env-panel__label">天灾</span>
+        <div class="env-options" id="disasterRow" role="group" aria-label="天灾">
+          <button class="env-btn disaster-btn env-btn--danger" data-disaster="earthquake" title="引发地震" aria-pressed="false">地震</button>
+          <button class="env-btn disaster-btn env-btn--danger" data-disaster="tsunami" title="从海面引发海啸" aria-pressed="false">海啸</button>
+          <button class="env-btn disaster-btn env-btn--danger" data-disaster="lightning" title="在雨雪天召唤雷电" aria-pressed="false">雷电</button>
         </div>
       </div>
     </div>
@@ -1250,6 +1291,8 @@
     const weatherRowEl = document.getElementById('weatherRow');
     const timeRowEl = document.getElementById('timeRow');
     const eventRowEl = document.getElementById('eventRow');
+    const disasterRowEl = document.getElementById('disasterRow');
+    const lightningFlashEl = document.getElementById('lightningFlash');
     const envControlEl = document.getElementById('envControl');
     const envToggleEl = document.getElementById('envToggle');
     const envPanelEl = document.getElementById('envPanel');
@@ -1444,6 +1487,7 @@
     let weatherAutoTimer = null;
     let timeAutoTimer = null;
     let randomEventTimer = null;
+    let nextLightningAt = 0;
     let lastWeatherFrame = 0;
     let wetToastShown = false;
     let snowToastShown = false;
@@ -1457,6 +1501,12 @@
     let balloonGroup = null;
     const cloudDrifts = [];
     const floatingIslands = [];
+    const seaFoams = [];
+    const seaBoats = [];
+    const palmTrees = [];
+    let oceanTexture = null;
+    let lighthouseGlow = null;
+    let lighthouseLampMat = null;
     let rainbowGroup = null;
     const rainbowMats = [];
     let rainbowTimer = 0;
@@ -1771,6 +1821,20 @@
     function syncAttachmentVisibility(group) {
       if (!group) return;
       const acc = group.userData.charAccessories;
+      const rec = group.userData.record;
+      if (rec && rec.damaged) {
+        if (acc) {
+          acc.umbrella.visible = false;
+          acc.scarf.visible = false;
+          acc.lantern.visible = false;
+          if (acc.rainCoat) acc.rainCoat.visible = false;
+          if (acc.snowCoat) acc.snowCoat.visible = false;
+          if (acc.beanie) acc.beanie.visible = false;
+        }
+        if (group.userData.nightGlow) group.userData.nightGlow.visible = false;
+        if (group.userData.vehicleGlow) group.userData.vehicleGlow.visible = false;
+        return;
+      }
       if (acc) {
         acc.umbrella.visible = state.weather === 'rain';
         acc.scarf.visible = state.weather === 'snow';
@@ -1803,6 +1867,13 @@
       document.body.classList.add('weather-' + state.weather, 'time-' + state.timeOfDay);
       rainLines.visible = state.weather === 'rain';
       snowPoints.visible = state.weather === 'snow';
+      if (state.eventsAuto && (state.weather === 'rain' || state.weather === 'snow')) {
+        if (!nextLightningAt) {
+          nextLightningAt = performance.now() + 14000 + Math.random() * 16000;
+        }
+      } else {
+        nextLightningAt = 0;
+      }
       environmentLightTarget = computeEnvironmentLight();
       lastWeatherFrame = performance.now();
       layoutEnvironmentGrounds();
@@ -1903,18 +1974,26 @@
       state.eventsAuto = !state.eventsAuto;
       if (state.eventsAuto) {
         scheduleRandomEvent();
-        toast('随机惊喜已开启 · 龙卷风会不时来做客');
+        if ((state.weather === 'rain' || state.weather === 'snow') && !nextLightningAt) {
+          nextLightningAt = performance.now() + 14000 + Math.random() * 16000;
+        }
+        toast('自动灾害已开启 · 龙卷风、地震、海啸会来访，雨雪天还有雷电');
       } else {
         stopRandomEvents();
-        toast('随机惊喜已关闭');
+        nextLightningAt = 0;
+        toast('自动灾害已关闭');
       }
       updateWeatherUI();
       scheduleSave();
       playSound('tick');
     }
     function triggerEvent(kind) {
-      if (kind === 'tornado') triggerTornado();
-      else if (kind === 'rainbow') showRainbow(true);
+      if (kind === 'tornado') return triggerTornado();
+      if (kind === 'earthquake') return triggerEarthquake();
+      if (kind === 'tsunami') return triggerTsunami();
+      if (kind === 'lightning') return triggerLightning(true);
+      if (kind === 'rainbow') return showRainbow(true);
+      return false;
     }
 
     function smoothstep(a, b, x) {
@@ -2131,18 +2210,15 @@
     meadow.receiveShadow = false;
     backdropGroup.add(meadow);
 
-    // layered pastel hills with snow caps
+    // layered pastel hills on the mountain side
     const HILLS = [
       { x: -64, z: -42, rx: 27, ry: 10, rz: 19, c: 0x96c2a5 },
       { x: -86, z: -4, rx: 25, ry: 8.5, rz: 18, c: 0xaac6b4 },
       { x: -38, z: -72, rx: 31, ry: 12, rz: 23, c: 0xa5bfd6 },
       { x: 8, z: -88, rx: 36, ry: 13, rz: 25, c: 0xb7d1ba },
-      { x: 52, z: -66, rx: 27, ry: 10, rz: 19, c: 0xd9b3c6 },
-      { x: 83, z: -16, rx: 25, ry: 9, rz: 17, c: 0xbfb9da },
-      { x: 73, z: 28, rx: 19, ry: 6.5, rz: 14, c: 0xb2d3c0 },
       { x: -57, z: 36, rx: 17, ry: 5.5, rz: 13, c: 0xdcbcc8 },
       { x: -12, z: -118, rx: 44, ry: 16, rz: 30, c: 0xaac8cf },
-      { x: 36, z: -112, rx: 38, ry: 14, rz: 26, c: 0xc7cfb0 }
+      { x: -104, z: 42, rx: 22, ry: 7, rz: 17, c: 0xb0cbb7 }
     ];
     const hillGeo = new THREE.SphereGeometry(1, 20, 14);
     const hillShadowMat = new THREE.MeshBasicMaterial({
@@ -2183,6 +2259,353 @@
       });
     }
 
+    // taller mountain range on the back-left side
+    const MOUNTAINS = [
+      { x: -70, z: -48, rx: 23, ry: 30, rz: 20, c: 0x7fa5b3 },
+      { x: -30, z: -70, rx: 20, ry: 27, rz: 18, c: 0x85aeb9 },
+      { x: 20, z: -80, rx: 19, ry: 25, rz: 17, c: 0x86b1a9 },
+      { x: -78, z: -58, rx: 28, ry: 26, rz: 24, c: 0x8ca9b8 },
+      { x: -112, z: -20, rx: 24, ry: 22, rz: 22, c: 0x9cb4a6 },
+      { x: -32, z: -96, rx: 22, ry: 24, rz: 20, c: 0x93b2bf },
+      { x: 18, z: -104, rx: 24, ry: 22, rz: 22, c: 0x99b7ad },
+      { x: -82, z: -126, rx: 34, ry: 32, rz: 30, c: 0x8faebd },
+      { x: -34, z: -140, rx: 40, ry: 40, rz: 34, c: 0x98b6c4 },
+      { x: 16, z: -128, rx: 30, ry: 30, rz: 26, c: 0x96b6ac },
+      { x: -118, z: -92, rx: 28, ry: 26, rz: 24, c: 0xa0b8a9 },
+      { x: -62, z: -96, rx: 20, ry: 21, rz: 18, c: 0x8ca99a }
+    ];
+    const mountainGeo = new THREE.ConeGeometry(1, 1, 7);
+    for (let i = 0; i < MOUNTAINS.length; i++) {
+      const m = MOUNTAINS[i];
+      const mMat = backdropMat(m.c, { flatShading: true, roughness: 1 });
+      const mesh = new THREE.Mesh(mountainGeo, mMat);
+      mesh.position.set(m.x, -7.8 + m.ry * 0.5, m.z);
+      mesh.scale.set(m.rx, m.ry, m.rz);
+      mesh.rotation.y = i * 0.55;
+      backdropGroup.add(mesh);
+      backdropHills.push({ mesh: mesh, baseColor: mMat.color.clone() });
+      const shadow = new THREE.Mesh(hillShadowGeo, hillShadowMat);
+      shadow.rotation.x = -Math.PI / 2;
+      shadow.position.set(m.x, -7.75, m.z);
+      shadow.scale.set(m.rx * 1.05, m.rz * 0.8, 1);
+      backdropGroup.add(shadow);
+      const capBase = { x: m.rx * 0.54, y: m.ry * 0.3, z: m.rz * 0.54 };
+      const cap = new THREE.Mesh(mountainGeo, snowCapMat);
+      cap.position.set(m.x, -7.8 + m.ry - m.ry * 0.15, m.z);
+      cap.scale.set(capBase.x * 0.02, capBase.y * 0.02, capBase.z * 0.02);
+      cap.rotation.y = mesh.rotation.y;
+      cap.visible = false;
+      backdropGroup.add(cap);
+      backdropSnowCaps.push({
+        mesh: cap,
+        base: capBase,
+        threshold: 0.06 + i * 0.014
+      });
+      if (i < 3) {
+        const peakCap = new THREE.Mesh(mountainGeo, snowCapMat);
+        peakCap.position.set(m.x, -7.8 + m.ry - m.ry * 0.105, m.z);
+        peakCap.scale.set(m.rx * 0.27, m.ry * 0.21, m.rz * 0.27);
+        peakCap.rotation.y = mesh.rotation.y + 0.2;
+        backdropGroup.add(peakCap);
+      }
+    }
+
+    // small green islands out in the sea
+    const SEA_ISLANDS = [
+      { x: 56, z: -72, rx: 16, ry: 5.5, rz: 12, c: 0x93c2a5 },
+      { x: 88, z: -18, rx: 13, ry: 4.5, rz: 10, c: 0xb1cdb3 },
+      { x: 76, z: 32, rx: 11, ry: 4, rz: 9, c: 0xdcbcc8 }
+    ];
+    for (let i = 0; i < SEA_ISLANDS.length; i++) {
+      const s = SEA_ISLANDS[i];
+      const isleMat = backdropMat(s.c, { flatShading: true, roughness: 1 });
+      const isle = new THREE.Mesh(hillGeo, isleMat);
+      isle.position.set(s.x, -7.8 + s.ry * 0.25, s.z);
+      isle.scale.set(s.rx, s.ry, s.rz);
+      backdropGroup.add(isle);
+      const capBase = { x: s.rx * 0.42, y: s.ry * 0.25, z: s.rz * 0.42 };
+      const cap = new THREE.Mesh(snowCapGeo, snowCapMat);
+      cap.position.set(s.x, isle.position.y + s.ry - s.ry * 0.04, s.z);
+      cap.scale.set(capBase.x * 0.02, capBase.y * 0.02, capBase.z * 0.02);
+      cap.visible = false;
+      backdropGroup.add(cap);
+      backdropSnowCaps.push({
+        mesh: cap,
+        base: capBase,
+        threshold: 0.1 + i * 0.018
+      });
+    }
+
+    // ---------------------------------------------------------------- sea side
+    function makeOceanTexture() {
+      const c = document.createElement('canvas');
+      c.width = 256;
+      c.height = 256;
+      const ctx = c.getContext('2d');
+      ctx.fillStyle = '#8ecfdf';
+      ctx.fillRect(0, 0, 256, 256);
+      const waveColors = ['#a7dfe8', '#78bfd2', '#b8e8ec', '#6fb4c9'];
+      for (let i = 0; i < 70; i++) {
+        ctx.strokeStyle = waveColors[i % waveColors.length];
+        ctx.globalAlpha = 0.18 + Math.random() * 0.3;
+        ctx.lineWidth = 1.5 + Math.random() * 3;
+        const y = Math.random() * 256;
+        ctx.beginPath();
+        ctx.moveTo(-10, y);
+        ctx.bezierCurveTo(60, y - 10, 120, y + 12, 190, y - 4);
+        ctx.stroke();
+      }
+      for (let i = 0; i < 45; i++) {
+        ctx.globalAlpha = 0.28;
+        ctx.strokeStyle = '#e9fbff';
+        ctx.lineWidth = 1;
+        const y = Math.random() * 256;
+        ctx.beginPath();
+        ctx.moveTo(Math.random() * 256, y);
+        ctx.quadraticCurveTo(Math.random() * 256, y + 6, Math.random() * 256, y);
+        ctx.stroke();
+      }
+      ctx.globalAlpha = 1;
+      const tex = new THREE.CanvasTexture(c);
+      tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+      tex.repeat.set(8, 10);
+      if ('encoding' in tex) tex.encoding = THREE.sRGBEncoding;
+      return tex;
+    }
+    oceanTexture = makeOceanTexture();
+    const ocean = new THREE.Mesh(
+      new THREE.PlaneGeometry(200, 360),
+      new THREE.MeshStandardMaterial({
+        map: oceanTexture,
+        color: 0xffffff,
+        roughness: 0.34,
+        metalness: 0.06
+      })
+    );
+    ocean.rotation.x = -Math.PI / 2;
+    ocean.position.set(124, -7.76, 0);
+    backdropGroup.add(ocean);
+
+    const beach = new THREE.Mesh(
+      new THREE.PlaneGeometry(10, 340),
+      backdropMat(0xf0e1bf, { roughness: 1 })
+    );
+    beach.rotation.x = -Math.PI / 2;
+    beach.position.set(22, -7.72, 0);
+    backdropGroup.add(beach);
+    const wetSand = new THREE.Mesh(
+      new THREE.PlaneGeometry(2.2, 340),
+      backdropMat(0xdcc9a2, { roughness: 0.8 })
+    );
+    wetSand.rotation.x = -Math.PI / 2;
+    wetSand.position.set(25.5, -7.705, 0);
+    backdropGroup.add(wetSand);
+
+    // shoreline foam that gently breathes
+    const foamGeo = new THREE.CircleGeometry(1, 12);
+    for (let i = 0; i < 30; i++) {
+      const z = -120 + i * 8.1 + (Math.random() * 2 - 1) * 2;
+      const x = 26.4 + Math.sin(z * 0.12) * 1.5;
+      const mat = new THREE.MeshBasicMaterial({
+        color: 0xffffff,
+        transparent: true,
+        opacity: 0.52,
+        depthWrite: false
+      });
+      const foam = new THREE.Mesh(foamGeo, mat);
+      foam.rotation.x = -Math.PI / 2;
+      foam.position.set(x, -7.695, z);
+      const base = { x: 1.2 + Math.random() * 2.3, y: 0.22 + Math.random() * 0.45 };
+      foam.scale.set(base.x, base.y, 1);
+      foam.userData.base = base;
+      foam.userData.phase = Math.random() * Math.PI * 2;
+      backdropGroup.add(foam);
+      seaFoams.push(foam);
+    }
+
+    // lighthouse on a little rock in the water
+    const lighthouse = new THREE.Group();
+    lighthouse.position.set(35, -7.8, 10);
+    const rockMat = backdropMat(0xb9b1ab, { flatShading: true });
+    const rock = new THREE.Mesh(new THREE.SphereGeometry(1, 12, 9), rockMat);
+    rock.scale.set(4.2, 2.4, 3.8);
+    rock.position.y = 0.7;
+    lighthouse.add(rock);
+    const rockTop = new THREE.Mesh(new THREE.CylinderGeometry(2.6, 3.4, 1.2, 12), backdropMat(0xa9c6a2));
+    rockTop.position.y = 2.4;
+    lighthouse.add(rockTop);
+    for (let i = 0; i < 3; i++) {
+      const seg = new THREE.Mesh(
+        new THREE.CylinderGeometry(1.15 - i * 0.12, 1.3 - i * 0.12, 2.5, 12),
+        backdropMat(i % 2 === 0 ? 0xf8f1e6 : 0xf2a9bb)
+      );
+      seg.position.y = 4.2 + i * 2.5;
+      lighthouse.add(seg);
+    }
+    const gallery = new THREE.Mesh(new THREE.CylinderGeometry(1.45, 1.45, 0.25, 12), backdropMat(0xd9c9bd));
+    gallery.position.y = 11.6;
+    lighthouse.add(gallery);
+    lighthouseLampMat = new THREE.MeshStandardMaterial({
+      color: 0xfff2c2,
+      emissive: new THREE.Color(0xffd27a),
+      emissiveIntensity: 0.1,
+      roughness: 0.3
+    });
+    const lampRoom = new THREE.Mesh(new THREE.CylinderGeometry(0.9, 0.9, 1.2, 10), lighthouseLampMat);
+    lampRoom.position.y = 12.3;
+    lighthouse.add(lampRoom);
+    const lampRoof = new THREE.Mesh(new THREE.ConeGeometry(1.2, 1.1, 10), backdropMat(0xf2a9bb, { flatShading: true }));
+    lampRoof.position.y = 13.35;
+    lighthouse.add(lampRoof);
+    lighthouseGlow = makeSpriteGlow(0, 12.25, 0.2, 2.8, 0xffd78a, 0.0);
+    lighthouse.add(lighthouseGlow);
+    backdropGroup.add(lighthouse);
+
+    // wooden pier
+    const pier = new THREE.Group();
+    pier.position.set(27, -7.5, 26);
+    const plankMat = backdropMat(0xc9ae8c, { roughness: 0.95 });
+    for (let i = 0; i < 4; i++) {
+      const plank = new THREE.Mesh(new THREE.BoxGeometry(8.5, 0.16, 0.7), plankMat);
+      plank.position.set(3.4, 0, -1.1 + i * 0.72);
+      pier.add(plank);
+    }
+    for (let i = 0; i < 4; i++) {
+      const post = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.16, 2.4, 6), plankMat);
+      post.position.set(i < 2 ? -0.3 : 6.2, -0.9, i % 2 === 0 ? -1.35 : 1.25);
+      pier.add(post);
+    }
+    backdropGroup.add(pier);
+
+    function addSailboat(x, z, s, rot, hullHex, sailHex) {
+      const boat = new THREE.Group();
+      const hull = new THREE.Mesh(
+        new THREE.SphereGeometry(1, 12, 8),
+        backdropMat(hullHex, { roughness: 0.7 })
+      );
+      hull.scale.set(2.4 * s, 0.52 * s, 0.9 * s);
+      hull.position.y = 0.02;
+      boat.add(hull);
+      const deck = new THREE.Mesh(new THREE.BoxGeometry(3.1 * s, 0.14 * s, 1.1 * s), backdropMat(0xf8f1e6));
+      deck.position.y = 0.28 * s;
+      boat.add(deck);
+      const mast = new THREE.Mesh(new THREE.CylinderGeometry(0.06 * s, 0.08 * s, 3.7 * s, 6), backdropMat(0x9c8478));
+      mast.position.y = 2.1 * s;
+      boat.add(mast);
+      const sailGeo = new THREE.BufferGeometry();
+      sailGeo.setAttribute('position', new THREE.Float32BufferAttribute([
+        0, 0, 0, 0, 3.1 * s, 0, 2.1 * s, 0.35 * s, 0
+      ], 3));
+      sailGeo.computeVertexNormals();
+      const sail = new THREE.Mesh(sailGeo, new THREE.MeshStandardMaterial({
+        color: sailHex, roughness: 0.86, side: THREE.DoubleSide
+      }));
+      sail.position.set(0.08 * s, 0.55 * s, 0);
+      boat.add(sail);
+      const flag = new THREE.Mesh(new THREE.BoxGeometry(0.7 * s, 0.26 * s, 0.02), backdropMat(0xf2a9bb));
+      flag.position.set(0.35 * s, 3.95 * s, 0);
+      boat.add(flag);
+      boat.position.set(x, -7.66, z);
+      boat.rotation.y = rot;
+      boat.userData.baseY = -7.66;
+      boat.userData.phase = Math.random() * Math.PI * 2;
+      backdropGroup.add(boat);
+      seaBoats.push(boat);
+    }
+    addSailboat(48, 40, 1.15, -0.6, 0xf2a9bb, 0xf8f1e6);
+    addSailboat(38, 32, 0.95, -0.8, 0xf6c6a8, 0xf8f1e6);
+    addSailboat(70, -24, 0.95, 0.4, 0xafcfe8, 0xfff2c2);
+    addSailboat(92, 52, 0.8, -0.2, 0xc6dcb4, 0xf8f1e6);
+
+    // a little rowboat by the pier
+    const rowboat = new THREE.Group();
+    const rowHull = new THREE.Mesh(new THREE.SphereGeometry(1, 10, 7), backdropMat(0xf6c6a8, { roughness: 0.8 }));
+    rowHull.scale.set(1.5, 0.36, 0.62);
+    rowboat.add(rowHull);
+    const rowDeck = new THREE.Mesh(new THREE.BoxGeometry(2, 0.12, 0.8), backdropMat(0xf8f1e6));
+    rowDeck.position.y = 0.24;
+    rowboat.add(rowDeck);
+    rowboat.position.set(31.5, -7.6, 28.5);
+    rowboat.rotation.y = 0.7;
+    rowboat.userData.baseY = -7.6;
+    rowboat.userData.phase = 1.7;
+    backdropGroup.add(rowboat);
+    seaBoats.push(rowboat);
+
+    // palm trees on the beach and islands
+    function addPalm(x, z, s) {
+      const palm = new THREE.Group();
+      const trunk = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.1 * s, 0.2 * s, 3.2 * s, 6),
+        backdropMat(0xb98f6e, { flatShading: true })
+      );
+      trunk.position.y = 1.6 * s;
+      trunk.rotation.z = 0.08;
+      palm.add(trunk);
+      const leafMat = backdropMat(0x8fc59a, { flatShading: true, roughness: 1 });
+      for (let i = 0; i < 6; i++) {
+        const leaf = new THREE.Mesh(new THREE.SphereGeometry(1, 8, 5), leafMat);
+        leaf.scale.set(1.55 * s, 0.09 * s, 0.34 * s);
+        leaf.position.set(Math.cos(i * Math.PI / 3) * 0.72 * s, 3.2 * s, Math.sin(i * Math.PI / 3) * 0.72 * s);
+        leaf.rotation.y = -i * Math.PI / 3;
+        leaf.rotation.z = -0.22;
+        palm.add(leaf);
+      }
+      const coco1 = new THREE.Mesh(new THREE.SphereGeometry(0.13 * s, 8, 6), backdropMat(0x9c7b5f));
+      coco1.position.set(0.2 * s, 3.05 * s, 0.2 * s);
+      palm.add(coco1);
+      const coco2 = new THREE.Mesh(new THREE.SphereGeometry(0.11 * s, 8, 6), backdropMat(0x9c7b5f));
+      coco2.position.set(-0.22 * s, 3.02 * s, 0.05 * s);
+      palm.add(coco2);
+      palm.position.set(x, -7.8, z);
+      palm.rotation.y = Math.random() * Math.PI * 2;
+      backdropGroup.add(palm);
+      palmTrees.push({ group: palm, phase: Math.random() * Math.PI * 2, baseRot: palm.rotation.z });
+    }
+    addPalm(20.5, 22, 0.9);
+    addPalm(22.5, 46, 0.8);
+    addPalm(19.5, -46, 0.85);
+    addPalm(56, -72, 1.1);
+    addPalm(89, -17, 0.85);
+    addPalm(76, 33, 0.8);
+
+    // stilt huts sitting over the beach
+    function addBeachHut(x, z, rot, s, wallHex, roofHex) {
+      const g = new THREE.Group();
+      g.position.set(x, -7.8, z);
+      g.rotation.y = rot;
+      const wood = backdropMat(0xb99a7c);
+      for (let i = -1; i <= 1; i += 2) {
+        for (let j = -1; j <= 1; j += 2) {
+          const post = new THREE.Mesh(new THREE.CylinderGeometry(0.12 * s, 0.14 * s, 2.4 * s, 6), wood);
+          post.position.set(i * 1.2 * s, 1.2 * s, j * 1.0 * s);
+          g.add(post);
+        }
+      }
+      const platform = new THREE.Mesh(new THREE.BoxGeometry(3 * s, 0.25 * s, 2.6 * s), wood);
+      platform.position.y = 2.35 * s;
+      g.add(platform);
+      const body = new THREE.Mesh(new THREE.BoxGeometry(2.6 * s, 1.7 * s, 2.2 * s), backdropMat(wallHex));
+      body.position.y = 3.3 * s;
+      g.add(body);
+      const roof = new THREE.Mesh(new THREE.ConeGeometry(2.3 * s, 1.0 * s, 4), backdropMat(roofHex, { flatShading: true }));
+      roof.rotation.y = Math.PI / 4;
+      roof.position.y = 4.55 * s;
+      g.add(roof);
+      const door = new THREE.Mesh(houseDoorGeo, houseDoorMat);
+      door.scale.set(0.52 * s, 0.9 * s, 0.08 * s);
+      door.position.set(0, 2.85 * s, 1.14 * s);
+      g.add(door);
+      const win = new THREE.Mesh(houseWindowGeo, houseWindowMat);
+      win.scale.set(0.55 * s, 0.5 * s, 1);
+      win.position.set(0.82 * s, 3.55 * s, 1.145 * s);
+      g.add(win);
+      const ladder = new THREE.Mesh(new THREE.BoxGeometry(0.1 * s, 2.1 * s, 0.6 * s), wood);
+      ladder.position.set(-1.1 * s, 1.1 * s, 1.4 * s);
+      ladder.rotation.x = -0.1;
+      g.add(ladder);
+      backdropGroup.add(g);
+    }
     // instanced trees on the meadow
     const treeSpots = [];
     for (let i = 0; i < 108; i++) {
@@ -2190,6 +2613,7 @@
       const r = 44 + Math.random() * 94;
       const x = Math.sin(a) * r;
       const z = Math.cos(a) * r;
+      if (x > 18) continue;
       let blocked = false;
       for (let h = 0; h < HILLS.length; h++) {
         const hh = HILLS[h];
@@ -2199,8 +2623,7 @@
       }
       if (!blocked && Math.hypot(x + 24, z + 36) < 15) blocked = true;
       if (!blocked && Math.hypot(x - 32, z + 42) < 12) blocked = true;
-      if (!blocked && Math.hypot(x - 48, z + 12) < 8) blocked = true;
-      if (!blocked && Math.hypot(x - 62, z + 2) < 8) blocked = true;
+      if (!blocked && Math.hypot(x + 44, z - 8) < 9) blocked = true;
       if (!blocked && Math.hypot(x + 50, z + 16) < 12) blocked = true;
       if (blocked) continue;
       treeSpots.push({
@@ -2329,14 +2752,14 @@
       [-18, -44, -0.22, 0xf9f1df, 0x87abc4, 1.05],
       [-34, -27, 0.5, 0xe9a2b2, 0xdcc692, 0.8],
       [-12, -33, -0.12, 0xf6e7d6, 0xc48e9a, 0.9],
-      [-22, -48, 0.22, 0xf8ead8, 0x9db1cf, 0.9],
-      [24, -38, -0.35, 0xf8ead8, 0x9db1cf, 1.0],
-      [33, -44, -0.08, 0xf2dfc6, 0xd98ca1, 0.85],
-      [43, -35, 0.3, 0xf9f1df, 0xb8a6c8, 0.95]
+      [-22, -48, 0.22, 0xf8ead8, 0x9db1cf, 0.9]
     ];
     for (let i = 0; i < VILLAGE_HOUSES.length; i++) {
       addHouse.apply(null, VILLAGE_HOUSES[i]);
     }
+    addBeachHut(27.5, 4, -0.35, 0.8, 0xf8ead8, 0xd98ca1);
+    addBeachHut(28.5, -32, 0.3, 0.72, 0xf6e7d6, 0x87abc4);
+    addBeachHut(24.5, 61, -0.1, 0.68, 0xe9a2b2, 0xdcc692);
 
     // pond, stepping-stone path and little bushes on the meadow
     const pond = new THREE.Group();
@@ -2415,10 +2838,10 @@
       backdropGroup.add(bush);
     }
 
-    // windmill on the right meadow
+    // windmill on the mountain-side meadow
     const windmill = new THREE.Group();
-    windmill.position.set(62, -7.8, -2);
-    windmill.rotation.y = -0.95;
+    windmill.position.set(-44, -7.8, 8);
+    windmill.rotation.y = 0.55;
     const windmillTower = new THREE.Mesh(
       new THREE.CylinderGeometry(1.25, 1.85, 6, 10),
       backdropMat(0xf6e7d6)
@@ -2452,8 +2875,7 @@
     backdropGroup.add(windmill);
 
     // little floating islands
-    function addFloatingIsland(x, y, z, s, rockHex, grassHex) {
-      const g = new THREE.Group();
+    function addFloatingIsland(x, y, z, s, rockHex, grassHex) {      const g = new THREE.Group();
       g.position.set(x, y, z);
       const rock = new THREE.Mesh(
         new THREE.ConeGeometry(1, 1, 7),
@@ -2482,9 +2904,6 @@
       backdropGroup.add(g);
       floatingIslands.push(g);
     }
-    // little floating island
-    addFloatingIsland(52, 10.2, -36, 0.74, 0xdfa98f, 0xb3dccb);
-
     // drifting clouds
     const cloudGeo = new THREE.SphereGeometry(1, 12, 9);
     const cloudMat = new THREE.MeshStandardMaterial({
@@ -2599,6 +3018,10 @@
       for (let i = 0; i < houseWindowMats.length; i++) {
         houseWindowMats[i].emissiveIntensity = glow;
       }
+      if (lighthouseGlow) {
+        lighthouseGlow.visible = isNightTime() || isDuskTime() || state.weather !== 'sunny';
+        if (lighthouseLampMat) lighthouseLampMat.emissiveIntensity = isNightTime() ? 1.5 : (isDuskTime() ? 0.9 : 0.16);
+      }
       if (rainbowGroup && rainbowTimer > 0 && state.weather !== 'sunny') {
         rainbowTimer = 0;
         rainbowGroup.visible = false;
@@ -2639,6 +3062,32 @@
       }
       if (windmillBlades) {
         windmillBlades.rotation.z = -(now * 0.00042);
+      }
+      if (oceanTexture) {
+        oceanTexture.offset.x = now * 0.000007;
+        oceanTexture.offset.y = now * 0.0000045;
+      }
+      for (let i = 0; i < seaFoams.length; i++) {
+        const foam = seaFoams[i];
+        const p = Math.sin(now * 0.0011 + foam.userData.phase);
+        foam.scale.set(
+          foam.userData.base.x * (0.92 + p * 0.12),
+          foam.userData.base.y * (0.82 + p * 0.22),
+          1
+        );
+        foam.material.opacity = 0.38 + 0.22 * (0.5 + p * 0.5);
+      }
+      for (let i = 0; i < seaBoats.length; i++) {
+        const boat = seaBoats[i];
+        boat.position.y = boat.userData.baseY + Math.sin(now * 0.0012 + boat.userData.phase) * 0.16;
+        boat.rotation.z = Math.sin(now * 0.001 + boat.userData.phase) * 0.025;
+      }
+      for (let i = 0; i < palmTrees.length; i++) {
+        const palm = palmTrees[i];
+        palm.group.rotation.z = palm.baseRot + Math.sin(now * 0.0009 + palm.phase) * 0.012;
+      }
+      if (lighthouseGlow && lighthouseGlow.visible) {
+        lighthouseGlow.material.opacity = 0.35 + Math.sin(now * 0.0013) * 0.2;
       }
       if (rainbowTimer > 0) {
         rainbowTimer = Math.max(0, rainbowTimer - dt * 1000);
@@ -2852,14 +3301,14 @@
 
     function isLiftableProp(p) {
       const def = PROP_MAP[p.propType];
-      if (!def) return false;
+      if (!def || p.damaged) return false;
       return def.cat === 'person' || def.cat === 'animal' ||
         def.cat === 'vehicle' || def.cat === 'char';
     }
 
     function triggerTornado() {
-      if (tornado.active) {
-        toast('龙卷风还在转圈呢');
+      if (anyMajorActive()) {
+        toast('灾害正在发生 · 先避一避吧');
         return false;
       }
       let targetX = 0;
@@ -2920,12 +3369,20 @@
     }
 
     function finishTornado() {
-      tornado.captured.forEach(restoreTornadoProp);
+      let scattered = 0;
+      tornado.captured.forEach(function (item) {
+        if (!scatterTornadoProp(item, tornado.endX, tornado.endZ)) restoreTornadoProp(item);
+        else scattered++;
+      });
       tornado.captured.clear();
       tornado.active = false;
       tornadoGroup.visible = false;
       for (let i = 0; i < tornadoOpacityMats.length; i++) {
         tornadoOpacityMats[i].opacity = 0;
+      }
+      if (scattered) {
+        toast('龙卷风把东西吹散啦');
+        scheduleSave();
       }
     }
 
@@ -2992,6 +3449,7 @@
           if (dist > 5.2 || g.position.y > 10) continue;
           tornado.captured.set(prop.id, {
             group: g,
+            rec: prop,
             px: g.position.x,
             py: g.position.y,
             pz: g.position.z,
@@ -3056,9 +3514,829 @@
       randomEventTimer = setTimeout(function () {
         randomEventTimer = null;
         if (!state.eventsAuto) return;
-        if (!document.hidden && !tornado.active) triggerTornado();
+        if (!document.hidden && !anyMajorActive()) {
+          const pool = ['tornado', 'earthquake', 'tsunami'];
+          triggerEvent(pool[Math.floor(Math.random() * pool.length)]);
+        }
         scheduleRandomEvent();
       }, delay);
+    }
+
+    // ---------------------------------------------------------------- damage & disaster effects
+    const FX_BOX = new THREE.BoxGeometry(1, 1, 1);
+    const fxParticles = [];
+    const lightningBolts = [];
+    let fxLastNow = 0;
+    let quakeShakeTimer = null;
+
+    const charredMat = new THREE.MeshStandardMaterial({
+      color: 0x2f2a2d,
+      roughness: 0.96,
+      metalness: 0.02
+    });
+
+    function spawnFxParticles(x, y, z, colors, count, power, opts) {
+      opts = opts || {};
+      const gravity = opts.gravity == null ? 9.8 : opts.gravity;
+      const lifeBase = opts.life || 0.85;
+      for (let i = 0; i < count; i++) {
+        const mat = new THREE.MeshStandardMaterial({
+          color: colors[i % colors.length],
+          roughness: 0.9,
+          metalness: 0,
+          transparent: true,
+          opacity: 1
+        });
+        const mesh = new THREE.Mesh(FX_BOX, mat);
+        const s = (opts.size || 0.13) * (0.6 + Math.random() * 0.9);
+        mesh.scale.set(s, s * (0.6 + Math.random() * 0.7), s);
+        mesh.position.set(
+          x + (Math.random() - 0.5) * 0.9,
+          y + Math.random() * 0.45,
+          z + (Math.random() - 0.5) * 0.9
+        );
+        mesh.rotation.set(Math.random() * Math.PI, Math.random() * Math.PI, Math.random() * Math.PI);
+        mesh.castShadow = false;
+        mesh.receiveShadow = false;
+        scene.add(mesh);
+        fxParticles.push({
+          mesh: mesh,
+          vx: (Math.random() - 0.5) * power,
+          vy: 0.8 + Math.random() * power,
+          vz: (Math.random() - 0.5) * power,
+          rx: (Math.random() - 0.5) * 9,
+          ry: (Math.random() - 0.5) * 9,
+          rz: (Math.random() - 0.5) * 9,
+          gravity: gravity,
+          life: lifeBase * (0.7 + Math.random() * 0.7),
+          maxLife: lifeBase
+        });
+      }
+      while (fxParticles.length > 240) {
+        const old = fxParticles.shift();
+        scene.remove(old.mesh);
+        old.mesh.material.dispose();
+      }
+    }
+
+    function spawnCrackLines(x, z, count) {
+      for (let i = 0; i < count; i++) {
+        const points = [];
+        const a = Math.random() * Math.PI * 2;
+        const len = 1.4 + Math.random() * 2.6;
+        for (let j = 0; j < 5; j++) {
+          const t = j / 4;
+          points.push(new THREE.Vector3(
+            x + Math.cos(a) * len * t + (Math.random() - 0.5) * 0.35,
+            0.125,
+            z + Math.sin(a) * len * t + (Math.random() - 0.5) * 0.35
+          ));
+        }
+        const geo = new THREE.BufferGeometry().setFromPoints(points);
+        const mat = new THREE.LineBasicMaterial({
+          color: 0x5c4d56,
+          transparent: true,
+          opacity: 0.55
+        });
+        const line = new THREE.Line(geo, mat);
+        scene.add(line);
+        fxParticles.push({
+          mesh: line,
+          vx: 0, vy: 0, vz: 0,
+          rx: 0, ry: 0, rz: 0,
+          gravity: 0,
+          life: 4.2,
+          maxLife: 4.2,
+          fadeOnly: true
+        });
+      }
+    }
+
+    function spawnLightningBolt(x, y, z, now) {
+      const points = [];
+      const topY = 31 + Math.random() * 4;
+      for (let i = 0; i <= 10; i++) {
+        const t = i / 10;
+        const jitter = 4.8 * (1 - t) + 0.15;
+        points.push(new THREE.Vector3(
+          x + (Math.random() - 0.5) * jitter,
+          topY + (y - topY) * t,
+          z + (Math.random() - 0.5) * jitter
+        ));
+      }
+      const curve = new THREE.CatmullRomCurve3(points);
+      const geo = new THREE.TubeGeometry(curve, 30, 0.12, 6, false);
+      const mat = new THREE.MeshBasicMaterial({
+        color: 0xf4fbff,
+        transparent: true,
+        opacity: 1,
+        depthWrite: false,
+        fog: false
+      });
+      const bolt = new THREE.Mesh(geo, mat);
+      const outerGeo = new THREE.TubeGeometry(curve, 30, 0.34, 6, false);
+      const outerMat = new THREE.MeshBasicMaterial({
+        color: 0xbfe8ff,
+        transparent: true,
+        opacity: 0.3,
+        depthWrite: false,
+        fog: false
+      });
+      const outer = new THREE.Mesh(outerGeo, outerMat);
+      scene.add(outer);
+      scene.add(bolt);
+      const glowMat = new THREE.SpriteMaterial({
+        map: glowTexture,
+        color: 0xdaf2ff,
+        transparent: true,
+        opacity: 0.95,
+        depthWrite: false
+      });
+      const glow = new THREE.Sprite(glowMat);
+      glow.position.set(x, y, z);
+      glow.scale.set(8.5, 8.5, 1);
+      scene.add(glow);
+      lightningBolts.push({
+        bolt: bolt, outer: outer, glow: glow,
+        born: now, life: 620
+      });
+    }
+
+    function flashScreen() {
+      if (!lightningFlashEl) return;
+      lightningFlashEl.classList.remove('is-flash');
+      void lightningFlashEl.offsetWidth;
+      lightningFlashEl.classList.add('is-flash');
+    }
+
+    function shakeStage(ms) {
+      if (!stageEl) return;
+      stageEl.classList.remove('is-quaking');
+      void stageEl.offsetWidth;
+      stageEl.classList.add('is-quaking');
+      if (quakeShakeTimer) clearTimeout(quakeShakeTimer);
+      quakeShakeTimer = setTimeout(function () {
+        stageEl.classList.remove('is-quaking');
+      }, ms);
+    }
+
+    function updateFx(now) {
+      let dt = 0;
+      if (fxLastNow) dt = Math.min(0.06, Math.max(0, (now - fxLastNow) / 1000));
+      fxLastNow = now;
+      for (let i = fxParticles.length - 1; i >= 0; i--) {
+        const p = fxParticles[i];
+        p.life -= dt;
+        if (p.life <= 0) {
+          scene.remove(p.mesh);
+          if (p.mesh.geometry && p.mesh.geometry.type !== 'BoxGeometry') p.mesh.geometry.dispose();
+          if (p.mesh.material) p.mesh.material.dispose();
+          fxParticles.splice(i, 1);
+          continue;
+        }
+        if (!p.fadeOnly) {
+          p.mesh.position.x += p.vx * dt;
+          p.mesh.position.y += p.vy * dt;
+          p.mesh.position.z += p.vz * dt;
+          p.vy -= p.gravity * dt;
+          if (p.mesh.position.y < 0.08) {
+            p.mesh.position.y = 0.08;
+            p.vy *= -0.25;
+            p.vx *= 0.72;
+            p.vz *= 0.72;
+          }
+          p.mesh.rotation.x += p.rx * dt;
+          p.mesh.rotation.y += p.ry * dt;
+          p.mesh.rotation.z += p.rz * dt;
+        }
+        p.mesh.material.opacity = clamp(p.life / p.maxLife, 0, 1);
+      }
+      for (let i = lightningBolts.length - 1; i >= 0; i--) {
+        const item = lightningBolts[i];
+        const age = now - item.born;
+        if (age >= item.life) {
+          scene.remove(item.bolt);
+          scene.remove(item.outer);
+          scene.remove(item.glow);
+          item.bolt.geometry.dispose();
+          item.bolt.material.dispose();
+          item.outer.geometry.dispose();
+          item.outer.material.dispose();
+          item.glow.material.dispose();
+          lightningBolts.splice(i, 1);
+          continue;
+        }
+        const fade = 1 - age / item.life;
+        item.bolt.material.opacity = fade;
+        item.outer.material.opacity = 0.3 * fade;
+        item.glow.material.opacity = fade * 0.95;
+        item.glow.scale.setScalar(8.5 + (1 - fade) * 4.5);
+      }
+    }
+
+    function hideCharAccessories(group) {
+      const acc = group.userData.charAccessories;
+      if (!acc) return;
+      acc.umbrella.visible = false;
+      acc.scarf.visible = false;
+      acc.lantern.visible = false;
+      if (acc.rainCoat) acc.rainCoat.visible = false;
+      if (acc.snowCoat) acc.snowCoat.visible = false;
+      if (acc.beanie) acc.beanie.visible = false;
+    }
+
+    function debrisColorsFor(rec) {
+      if (rec.kind === 'brick') return [rec.color, rec.color, 0xe8d8c8];
+      const def = PROP_MAP[rec.propType];
+      if (def && def.cat === 'vehicle') return [0xf0b7b5, 0xe8d8c8, 0xafcfe8, 0xd2cbd3];
+      return [0xe8d8c8, 0xd2cbd3, 0xf0b7b5, 0xdcc692];
+    }
+
+    function applyDamageVisual(rec, object3d) {
+      if (!object3d || object3d.userData.damageApplied) return;
+      object3d.userData.damageApplied = true;
+      const def = rec.kind === 'prop' ? PROP_MAP[rec.propType] : null;
+      if (rec.damaged === 'burnt') {
+        object3d.traverse(function (o) {
+          if (o.isMesh) {
+            o.material = charredMat;
+            o.castShadow = true;
+            o.receiveShadow = true;
+          }
+        });
+        hideCharAccessories(object3d);
+        if (object3d.userData.vehicleGlow) object3d.userData.vehicleGlow.visible = false;
+        const isAnimal = def && def.cat === 'animal';
+        object3d.position.y = rec.layer * LAYER + (isAnimal ? 0.24 : 0.34);
+        object3d.rotation.z = (rec.damageDir || 1) * (isAnimal ? 1.4 : 1.46);
+        object3d.rotation.x = 0.06;
+        const scorchMat = new THREE.MeshBasicMaterial({
+          color: 0x3b3032,
+          transparent: true,
+          opacity: 0.28,
+          depthWrite: false
+        });
+        const scorch = new THREE.Mesh(new THREE.CircleGeometry(1, 18), scorchMat);
+        scorch.rotation.x = -Math.PI / 2;
+        scorch.position.set(object3d.position.x, 0.035, object3d.position.z);
+        scorch.scale.set(1.25, 0.9, 1);
+        scorch.renderOrder = 1;
+        scene.add(scorch);
+        rec.scorchMesh = scorch;
+        syncAttachmentVisibility(object3d);
+        return;
+      }
+      if (rec.damaged !== 'broken') return;
+
+      const dims = itemDims(rec);
+      const halfW = dims[0] * CELL * 0.5;
+      const halfD = dims[1] * CELL * 0.5;
+      const groundLocal = -rec.layer * LAYER + 0.06;
+      const colors = debrisColorsFor(rec);
+      for (let i = 0; i < 5; i++) {
+        const mat = new THREE.MeshStandardMaterial({
+          color: colors[i % colors.length],
+          roughness: 0.92,
+          metalness: 0
+        });
+        const chunk = new THREE.Mesh(FX_BOX, mat);
+        const s = 0.1 + Math.random() * 0.2;
+        chunk.scale.set(s, s * (0.55 + Math.random() * 0.6), s * (0.7 + Math.random() * 0.6));
+        const side = i % 2 === 0 ? -1 : 1;
+        chunk.position.set(
+          side * (halfW + 0.15 + Math.random() * 0.85),
+          groundLocal + Math.random() * 0.12,
+          (Math.random() - 0.5) * (halfD * 1.8 + 0.8)
+        );
+        chunk.rotation.set(Math.random() * 0.6, Math.random() * Math.PI, Math.random() * 0.4);
+        chunk.castShadow = false;
+        object3d.add(chunk);
+      }
+      const topY = rec.kind === 'brick' ? BODY + STUD + 0.005 : 1.43;
+      const addTopCrack = rec.kind === 'brick' || (def && def.cat === 'vehicle');
+      if (addTopCrack) {
+        const crackPoints = [];
+        for (let i = 0; i < 5; i++) {
+          const t = i / 4;
+          crackPoints.push(new THREE.Vector3(
+            -halfW * 0.66 + halfW * 1.32 * t,
+            topY,
+            (i % 2 === 0 ? -1 : 1) * halfD * 0.28
+          ));
+        }
+        const crackGeo = new THREE.BufferGeometry().setFromPoints(crackPoints);
+        const crackMat = new THREE.LineBasicMaterial({
+          color: 0x5a4a50,
+          transparent: true,
+          opacity: 0.8
+        });
+        object3d.add(new THREE.Line(crackGeo, crackMat));
+      }
+
+      if (rec.kind === 'prop') {
+        const sidePoints = [];
+        for (let i = 0; i < 5; i++) {
+          const t = i / 4;
+          sidePoints.push(new THREE.Vector3(
+            halfW - 0.08,
+            0.54 + t * 0.72,
+            -halfD * 0.35 + halfD * 0.82 * t + (i % 2 === 0 ? -0.11 : 0.11)
+          ));
+        }
+        const sideGeo = new THREE.BufferGeometry().setFromPoints(sidePoints);
+        object3d.add(new THREE.Line(sideGeo, new THREE.LineBasicMaterial({
+          color: 0x4e4047,
+          transparent: true,
+          opacity: 0.78
+        })));
+      }
+
+      if (rec.kind === 'brick') {
+        if (object3d.material) {
+          object3d.material = object3d.material.clone();
+          object3d.material.color.multiplyScalar(0.82);
+        }
+      } else if (def) {
+        if (object3d.userData.vehicleGlow) object3d.userData.vehicleGlow.visible = false;
+        if (def.cat === 'vehicle') {
+          object3d.rotation.z += (rec.damageDir || 1) * 0.065;
+          object3d.rotation.x += 0.025;
+          object3d.position.y = rec.layer * LAYER + 0.01;
+        } else {
+          object3d.rotation.z += (rec.damageDir || 1) * 0.05;
+        }
+      }
+      syncAttachmentVisibility(object3d);
+    }
+
+    function damageItem(rec, type) {
+      if (!rec || rec.damaged) return false;
+      const inState = rec.kind === 'brick'
+        ? state.bricks.indexOf(rec) !== -1
+        : state.props.indexOf(rec) !== -1;
+      if (!inState) return false;
+      const def = rec.kind === 'prop' ? PROP_MAP[rec.propType] : null;
+      const cat = def ? def.cat : 'brick';
+      if (type === 'burnt') {
+        if (!def || (cat !== 'person' && cat !== 'animal' && cat !== 'char')) return false;
+      } else if (type === 'broken') {
+        if (def && (cat === 'person' || cat === 'animal' || cat === 'char' || cat === 'road')) return false;
+      } else {
+        return false;
+      }
+      rec.damaged = type;
+      rec.damageDir = rec.id % 2 === 0 ? 1 : -1;
+      const object3d = state.meshById.get(rec.id);
+      if (object3d) {
+        applyDamageVisual(rec, object3d);
+        const colors = type === 'burnt'
+          ? [0x3d3436, 0x2e2a2c, 0xffd58a, 0xb9aeb6]
+          : debrisColorsFor(rec);
+        spawnFxParticles(
+          object3d.position.x,
+          object3d.position.y + 0.3,
+          object3d.position.z,
+          colors,
+          type === 'burnt' ? 7 : 10,
+          type === 'burnt' ? 2.1 : 2.7,
+          { gravity: type === 'burnt' ? 5 : 8, life: 0.9 }
+        );
+        if (type === 'broken') {
+          spawnCrackLines(object3d.position.x, object3d.position.z, 2);
+        }
+      }
+      scheduleSave();
+      return true;
+    }
+
+    function isSheltered(p) {
+      const dims = itemDims(p);
+      const maxCheckLayer = Math.min(MAX_LAYER, p.layer + 7);
+      for (let l = p.layer + 1; l <= maxCheckLayer; l++) {
+        for (let x = p.gx; x < p.gx + dims[0]; x++) {
+          for (let z = p.gz; z < p.gz + dims[1]; z++) {
+            const above = state.occupancy.get(cellKey(x, z, l));
+            if (!above || above === p) continue;
+            if (above.kind === 'brick') return true;
+            if (above.kind === 'prop') {
+              const d = PROP_MAP[above.propType];
+              if (d && (d.cat === 'build' || d.cat === 'road' || d.support)) return true;
+            }
+          }
+        }
+      }
+      return false;
+    }
+
+    function anyMajorActive() {
+      return tornado.active || quake.active || tsunami.active;
+    }
+
+    function shuffleList(list) {
+      for (let i = list.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        const tmp = list[i];
+        list[i] = list[j];
+        list[j] = tmp;
+      }
+      return list;
+    }
+
+    function pickStructureTargets(maxCount) {
+      const all = [];
+      for (let i = 0; i < state.bricks.length; i++) {
+        if (!state.bricks[i].damaged) all.push(state.bricks[i]);
+      }
+      for (let i = 0; i < state.props.length; i++) {
+        const p = state.props[i];
+        const def = PROP_MAP[p.propType];
+        if (def && def.cat === 'build' && !p.damaged) all.push(p);
+      }
+      if (!all.length) return [];
+      const picked = [];
+      const pickedIds = new Set();
+      const epicenters = shuffleList(all.slice()).slice(0, 2);
+      for (let e = 0; e < epicenters.length; e++) {
+        const center = epicenters[e];
+        const cluster = all.filter(function (item) {
+          return Math.abs(item.gx - center.gx) <= 2 &&
+            Math.abs(item.gz - center.gz) <= 2;
+        });
+        shuffleList(cluster);
+        for (let i = 0; i < cluster.length && picked.length < maxCount; i++) {
+          if (pickedIds.has(cluster[i].id)) continue;
+          pickedIds.add(cluster[i].id);
+          picked.push(cluster[i]);
+        }
+        if (picked.length >= maxCount) break;
+      }
+      if (!picked.length) {
+        for (let i = 0; i < all.length && picked.length < maxCount; i++) {
+          if (!pickedIds.has(all[i].id)) {
+            pickedIds.add(all[i].id);
+            picked.push(all[i]);
+          }
+        }
+      }
+      return picked;
+    }
+
+    function pickDamageTargets(maxVehicles, maxStructures) {
+      const targets = [];
+      const vehicles = state.props.filter(function (p) {
+        const def = PROP_MAP[p.propType];
+        return def && def.cat === 'vehicle' && !p.damaged;
+      });
+      shuffleList(vehicles);
+      for (let i = 0; i < vehicles.length && i < maxVehicles; i++) targets.push(vehicles[i]);
+      const structures = pickStructureTargets(maxStructures);
+      for (let i = 0; i < structures.length; i++) targets.push(structures[i]);
+      return targets;
+    }
+
+    function scatterTornadoProp(item, endX, endZ, opts) {
+      opts = opts || {};
+      const rec = item.rec;
+      const group = item.group;
+      if (!rec || !group || !group.parent) return false;
+      if (state.meshById.get(rec.id) !== group) return false;
+      if (state.props.indexOf(rec) === -1) return false;
+      const def = PROP_MAP[rec.propType];
+      if (!def) return false;
+      const dims = effDims(def, rec.rot);
+      unregisterOccupancy(rec);
+      let chosen = null;
+      for (let attempt = 0; attempt < 44; attempt++) {
+        const angle = Math.random() * Math.PI * 2;
+        const radius = attempt < 4 ? 2 + Math.random() * 3 : 3 + Math.random() * 9.5;
+        const wx = clamp(endX + Math.cos(angle) * radius, -SIZE / 2 + 1, SIZE / 2 - 1);
+        const wz = clamp(endZ + Math.sin(angle) * radius, -SIZE / 2 + 1, SIZE / 2 - 1);
+        let gx = Math.round((wx + SIZE / 2) / CELL - dims[0] / 2);
+        let gz = Math.round((wz + SIZE / 2) / CELL - dims[1] / 2);
+        gx = clamp(gx, 0, SIZE - dims[0]);
+        gz = clamp(gz, 0, SIZE - dims[1]);
+        if (canPlace('prop', rec.propType, rec.rot, gx, gz, 0)) {
+          chosen = { gx: gx, gz: gz };
+          break;
+        }
+      }
+      if (!chosen) {
+        registerOccupancy(rec);
+        return false;
+      }
+      rec.gx = chosen.gx;
+      rec.gz = chosen.gz;
+      rec.layer = 0;
+      const wx = worldX(rec.gx, dims[0]);
+      const wz = worldZ(rec.gz, dims[1]);
+      group.position.set(wx, 0, wz);
+      group.rotation.set(0, rec.rot * Math.PI / 2, 0);
+      group.scale.set(item.sx, item.sy, item.sz);
+      registerOccupancy(rec);
+      spawnFxParticles(
+        wx, 0.12, wz,
+        opts.colors || [0xe8d8c8, 0xf0b7b5, 0xd2cbd3],
+        opts.count || 6,
+        opts.power || 2.2,
+        { gravity: opts.gravity == null ? 8 : opts.gravity, life: opts.life || 0.65 }
+      );
+      return true;
+    }
+
+    // ---------------------------------------------------------------- earthquake
+    const quake = {
+      active: false,
+      startTime: 0,
+      duration: 2700,
+      queue: []
+    };
+
+    function triggerEarthquake() {
+      if (anyMajorActive()) {
+        toast('灾害正在发生 · 先避一避吧');
+        return false;
+      }
+      quake.active = true;
+      quake.startTime = performance.now();
+      quake.queue = [];
+      const targets = pickDamageTargets(2, 8);
+      for (let i = 0; i < targets.length; i++) {
+        quake.queue.push({ rec: targets[i], at: 280 + i * 165, done: false });
+      }
+      shakeStage(1700);
+      playSound('quake');
+      toast(targets.length ? '地震啦 · 建筑和车辆被震坏了' : '地震啦 · 大地在摇晃');
+      return true;
+    }
+
+    function updateQuake(now) {
+      if (!quake.active) return;
+      const elapsed = now - quake.startTime;
+      for (let i = 0; i < quake.queue.length; i++) {
+        const item = quake.queue[i];
+        if (!item.done && elapsed >= item.at) {
+          item.done = true;
+          damageItem(item.rec, 'broken');
+        }
+      }
+      if (elapsed >= quake.duration) {
+        quake.active = false;
+        quake.queue = [];
+      }
+    }
+
+    // ---------------------------------------------------------------- tsunami
+    const tsunami = {
+      active: false,
+      startTime: 0,
+      duration: 7200,
+      targets: [],
+      washTargets: [],
+      washed: new Set(),
+      hit: new Set(),
+      lastFoamAt: 0
+    };
+    const tsunamiGroup = new THREE.Group();
+    tsunamiGroup.visible = false;
+    scene.add(tsunamiGroup);
+    const tsunamiWaveShape = new THREE.Shape();
+    tsunamiWaveShape.moveTo(-1.2, 0);
+    tsunamiWaveShape.lineTo(13, 0);
+    tsunamiWaveShape.lineTo(13, 3.4);
+    tsunamiWaveShape.quadraticCurveTo(11.5, 8.8, 7.2, 9.7);
+    tsunamiWaveShape.quadraticCurveTo(4.6, 10, 3.5, 7.9);
+    tsunamiWaveShape.quadraticCurveTo(2.2, 5.8, -1.2, 5.2);
+    tsunamiWaveShape.closePath();
+    const tsunamiWaveGeo = new THREE.ExtrudeGeometry(tsunamiWaveShape, {
+      depth: 72,
+      bevelEnabled: false,
+      curveSegments: 8,
+      steps: 1
+    });
+    tsunamiWaveGeo.translate(0, 0, -36);
+    const tsunamiWaveMat = new THREE.MeshStandardMaterial({
+      color: 0x79c9df,
+      roughness: 0.23,
+      metalness: 0.06,
+      transparent: true,
+      opacity: 0.7,
+      depthWrite: false,
+      side: THREE.DoubleSide
+    });
+    const tsunamiWave = new THREE.Mesh(tsunamiWaveGeo, tsunamiWaveMat);
+    tsunamiGroup.add(tsunamiWave);
+    const tsunamiFoamMats = [];
+    function addTsunamiFoamLine(x, y, thick) {
+      const pts = [];
+      for (let i = 0; i <= 16; i++) {
+        const z = -36 + i * 4.5;
+        pts.push(new THREE.Vector3(x + Math.sin(i * 1.7) * 0.28, y + Math.sin(i * 1.3) * 0.12, z));
+      }
+      const mat = new THREE.MeshBasicMaterial({
+        color: 0xf4fdff,
+        transparent: true,
+        opacity: 0.82,
+        depthWrite: false,
+        fog: false
+      });
+      tsunamiFoamMats.push(mat);
+      tsunamiGroup.add(new THREE.Mesh(
+        new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 48, thick, 6, false),
+        mat
+      ));
+    }
+    addTsunamiFoamLine(4.1, 9.2, 0.22);
+    addTsunamiFoamLine(6.4, 8.3, 0.13);
+    addTsunamiFoamLine(0.2, 0.65, 0.12);
+    const tsunamiFloodMat = new THREE.MeshBasicMaterial({
+      color: 0x92d9e7,
+      transparent: true,
+      opacity: 0,
+      depthWrite: false
+    });
+    const tsunamiFlood = new THREE.Mesh(new THREE.PlaneGeometry(82, 82), tsunamiFloodMat);
+    tsunamiFlood.rotation.x = -Math.PI / 2;
+    tsunamiFlood.position.y = 0.18;
+    tsunamiFlood.visible = false;
+    tsunamiFlood.renderOrder = 2;
+    scene.add(tsunamiFlood);
+
+    function triggerTsunami() {
+      if (anyMajorActive()) {
+        toast('灾害正在发生 · 先避一避吧');
+        return false;
+      }
+      tsunami.active = true;
+      tsunami.startTime = performance.now();
+      tsunami.targets = [];
+      tsunami.washTargets = [];
+      tsunami.washed = new Set();
+      tsunami.hit = new Set();
+      tsunami.lastFoamAt = 0;
+      const targets = pickDamageTargets(2, 8);
+      for (let i = 0; i < targets.length; i++) {
+        const rec = targets[i];
+        let wx = 0;
+        if (rec.kind === 'prop') {
+          const g = state.meshById.get(rec.id);
+          if (g) wx = g.position.x;
+        } else {
+          const dims = itemDims(rec);
+          wx = worldX(rec.gx, dims[0]);
+        }
+        tsunami.targets.push({ rec: rec, x: wx });
+      }
+      for (let i = 0; i < state.props.length; i++) {
+        const p = state.props[i];
+        const def = PROP_MAP[p.propType];
+        if (!def || p.damaged) continue;
+        if (def.cat !== 'person' && def.cat !== 'animal' && def.cat !== 'char') continue;
+        const g = state.meshById.get(p.id);
+        if (g) tsunami.washTargets.push({ rec: p, x: g.position.x });
+      }
+      tsunamiGroup.visible = true;
+      tsunamiGroup.position.set(58, 0.1, 0);
+      tsunamiGroup.scale.set(1, 0.8, 1);
+      tsunamiFlood.visible = true;
+      tsunamiFloodMat.opacity = 0;
+      shakeStage(800);
+      playSound('wave');
+      toast('海啸来啦 · 海浪从海面冲上舞台');
+      return true;
+    }
+
+    function updateTsunami(now) {
+      if (!tsunami.active) return;
+      const p = clamp((now - tsunami.startTime) / tsunami.duration, 0, 1);
+      const travel = smoothstep(0, 0.72, p);
+      const waveX = 58 + (-48 - 58) * travel;
+      tsunamiGroup.position.x = waveX;
+      tsunamiGroup.scale.set(1, 0.78 + Math.sin(Math.min(1, p * 1.15) * Math.PI) * 0.32, 1);
+      const fade = smoothstep(0, 0.08, p) * (1 - smoothstep(0.72, 1, p));
+      tsunamiWaveMat.opacity = 0.7 * fade;
+      for (let i = 0; i < tsunamiFoamMats.length; i++) {
+        tsunamiFoamMats[i].opacity = 0.82 * fade;
+      }
+      tsunamiFloodMat.opacity = 0.2 * smoothstep(0.12, 0.38, p) * (1 - smoothstep(0.68, 0.97, p));
+      tsunamiFlood.visible = tsunamiFloodMat.opacity > 0.002;
+      for (let i = 0; i < tsunami.targets.length; i++) {
+        const item = tsunami.targets[i];
+        if (tsunami.hit.has(item.rec.id)) continue;
+        if (waveX - 1.4 <= item.x) {
+          tsunami.hit.add(item.rec.id);
+          const g = state.meshById.get(item.rec.id);
+          if (damageItem(item.rec, 'broken')) {
+            spawnFxParticles(
+              g ? g.position.x : item.x,
+              0.35,
+              g ? g.position.z : 0,
+              [0xd8f5fb, 0x9fdfea, 0xf4fdff],
+              9, 2.3, { gravity: 5, life: 0.8 }
+            );
+          }
+        }
+      }
+      for (let i = 0; i < tsunami.washTargets.length; i++) {
+        const item = tsunami.washTargets[i];
+        if (tsunami.washed.has(item.rec.id)) continue;
+        if (waveX - 1.4 > item.x) continue;
+        tsunami.washed.add(item.rec.id);
+        const g = state.meshById.get(item.rec.id);
+        if (!g || !g.parent) continue;
+        const fake = {
+          rec: item.rec,
+          group: g,
+          sx: g.scale.x,
+          sy: g.scale.y,
+          sz: g.scale.z
+        };
+        scatterTornadoProp(
+          fake,
+          -SIZE / 2 + 6,
+          g.position.z + (Math.random() - 0.5) * 14,
+          { colors: [0xd8f5fb, 0x9fdfea, 0xf4fdff], count: 8, power: 2.4, gravity: 5, life: 0.75 }
+        );
+        scheduleSave();
+      }
+      if (p < 0.8 && now - tsunami.lastFoamAt > 150) {
+        tsunami.lastFoamAt = now;
+        spawnFxParticles(
+          waveX + 2.5,
+          0.22,
+          (Math.random() - 0.5) * 38,
+          [0xf4fdff, 0xd8f5fb, 0x92d9e7],
+          4, 1.8, { gravity: 3.5, life: 0.65, size: 0.11 }
+        );
+      }
+      if (p >= 1) {
+        tsunami.active = false;
+        tsunamiGroup.visible = false;
+        tsunamiFlood.visible = false;
+        tsunami.targets = [];
+        tsunami.washTargets = [];
+        tsunami.washed.clear();
+        tsunami.hit.clear();
+        scheduleSave();
+        toast('海浪退去了');
+      }
+    }
+
+    // ---------------------------------------------------------------- lightning
+    let lastLightningAt = 0;
+    function triggerLightning(manual) {
+      if (state.weather !== 'rain' && state.weather !== 'snow') {
+        if (manual) toast('晴天打不了雷 · 先切到下雨或下雪吧');
+        return false;
+      }
+      if (anyMajorActive()) {
+        if (manual) toast('灾害正在发生 · 先避一避吧');
+        return false;
+      }
+      const now = performance.now();
+      if (now - lastLightningAt < 900) return false;
+      lastLightningAt = now;
+      const candidates = state.props.filter(function (p) {
+        const def = PROP_MAP[p.propType];
+        if (!def || (def.cat !== 'person' && def.cat !== 'animal' && def.cat !== 'char')) return false;
+        if (p.damaged) return false;
+        return !isSheltered(p);
+      });
+      shuffleList(candidates);
+      const strikeCount = candidates.length ? (Math.random() < 0.32 ? 2 : 1) : 0;
+      let hitCount = 0;
+      for (let i = 0; i < strikeCount && i < candidates.length; i++) {
+        const p = candidates[i];
+        const g = state.meshById.get(p.id);
+        if (!g) continue;
+        const def = PROP_MAP[p.propType];
+        const boltY = g.position.y + (def && def.cat === 'animal' ? 1.35 : 2.25);
+        spawnLightningBolt(g.position.x, boltY, g.position.z, now);
+        if (damageItem(p, 'burnt')) hitCount++;
+      }
+      if (!hitCount) {
+        const a = Math.random() * Math.PI * 2;
+        const r = 4 + Math.random() * Math.max(4, SIZE / 2 - 6);
+        const x = Math.sin(a) * r;
+        const z = Math.cos(a) * r;
+        spawnLightningBolt(x, 0.3, z, now);
+        spawnCrackLines(x, z, 2);
+      }
+      flashScreen();
+      playSound('thunder');
+      if (hitCount || manual) toast(hitCount ? '雷电落下 · 有角色被击中了' : '雷电劈在了空地上');
+      return true;
+    }
+
+    function updateWeatherLightning(now) {
+      if (!nextLightningAt) return;
+      if (!state.eventsAuto) return;
+      if (state.weather !== 'rain' && state.weather !== 'snow') {
+        nextLightningAt = 0;
+        return;
+      }
+      if (now < nextLightningAt) return;
+      nextLightningAt = now + 26000 + Math.random() * 22000;
+      if (!anyMajorActive()) triggerLightning(false);
     }
 
     backdropReady = true;
@@ -4149,44 +5427,58 @@
       const tire = propMat('#2d3134');
       const light = propMat('#fff2c2');
       const tail = propMat('#cf4a3d');
+      const steel = propMat('#6f6774');
 
       for (let sx = -1; sx <= 1; sx += 2) {
         for (let sz = -1; sz <= 1; sz += 2) {
-          addPropCylinder(g, tire, 0.25, 0.25, 0.16, 18, sx * 0.78, 0.25, sz * 0.88, 0, 0, Math.PI / 2);
-          addPropCylinder(g, cream, 0.105, 0.105, 0.17, 12, sx * 0.78, 0.25, sz * 0.88, 0, 0, Math.PI / 2);
+          const z = sz * 0.96;
+          addPropCylinder(g, tire, 0.25, 0.25, 0.16, 18, sx * 0.78, 0.25, z, 0, 0, Math.PI / 2);
+          addPropCylinder(g, cream, 0.105, 0.105, 0.17, 12, sx * 0.78, 0.25, z, 0, 0, Math.PI / 2);
         }
       }
 
-      addPropBox(g, bodyDeep, 1.5, 0.16, 2.6, 0, 0.32, 0);
-      addPropBox(g, body, 1.68, 0.22, 2.78, 0, 0.52, 0);
-      addPropBox(g, body, 1.7, 0.42, 2.8, 0, 0.78, 0);
-      addPropBox(g, cream, 1.72, 0.07, 2.84, 0, 0.6, 0);
-      addPropBox(g, body, 1.6, 0.4, 2.8, 0, 1.14, 0);
-      addPropBox(g, cream, 0.035, 0.1, 2.9, -0.935, 1.32, 0);
-      addPropBox(g, cream, 0.035, 0.1, 2.9, 0.935, 1.32, 0);
-      addPropBox(g, cream, 1.88, 0.06, 2.9, 0, 1.37, 0);
-      addPropBox(g, cream, 0.6, 0.006, 1.1, 0, 1.403, -0.2);
-
-      for (let i = 0; i < 3; i++) {
-        const z = -0.78 + i * 0.78;
-        addPropBox(g, glass, 0.02, 0.28, 0.58, -0.806, 1.16, z);
-        addPropBox(g, glass, 0.02, 0.28, 0.58, 0.806, 1.16, z);
-        addPropBox(g, cream, 0.024, 0.28, 0.05, -0.808, 1.16, z + 0.39);
-        addPropBox(g, cream, 0.024, 0.28, 0.05, 0.808, 1.16, z + 0.39);
-      }
-      addPropBox(g, glass, 1.2, 0.28, 0.03, 0, 1.16, 1.405);
-      addPropBox(g, glass, 1.12, 0.24, 0.03, 0, 1.15, -1.405);
-
-      addPropSphere(g, light, 0.1, 0.08, 0.04, -0.52, 0.76, 1.405, 12);
-      addPropSphere(g, light, 0.1, 0.08, 0.04, 0.52, 0.76, 1.405, 12);
+      // rear passenger pod
+      addPropBox(g, bodyDeep, 1.5, 0.16, 1.9, 0, 0.32, -0.52);
+      addPropBox(g, body, 1.66, 0.26, 1.55, 0, 0.55, -0.58);
+      addPropBox(g, cream, 1.7, 0.06, 1.58, 0, 0.68, -0.58);
+      addPropSphere(g, body, 0.78, 0.34, 0.68, 0, 1.03, -0.62, 18);
+      addPropBox(g, cream, 1.55, 0.05, 1.38, 0, 1.3, -0.62);
+      addPropBox(g, glass, 0.02, 0.26, 0.48, -0.755, 1.1, -0.98);
+      addPropBox(g, glass, 0.02, 0.26, 0.48, 0.755, 1.1, -0.98);
+      addPropBox(g, glass, 0.02, 0.26, 0.48, -0.755, 1.1, -0.34);
+      addPropBox(g, glass, 0.02, 0.26, 0.48, 0.755, 1.1, -0.34);
+      addPropBox(g, glass, 1.0, 0.24, 0.03, 0, 1.06, -1.31);
+      addPropBox(g, cream, 0.035, 0.24, 1.5, -0.935, 1.24, -0.62);
+      addPropBox(g, cream, 0.035, 0.24, 1.5, 0.935, 1.24, -0.62);
+      addPropBox(g, cream, 1.4, 0.12, 0.12, 0, 0.38, -1.42);
       addPropSphere(g, tail, 0.07, 0.055, 0.035, -0.6, 0.7, -1.405, 10);
       addPropSphere(g, tail, 0.07, 0.055, 0.035, 0.6, 0.7, -1.405, 10);
-      addPropBox(g, cream, 1.4, 0.12, 0.12, 0, 0.38, 1.42);
-      addPropBox(g, cream, 1.4, 0.12, 0.12, 0, 0.38, -1.42);
-      addPropBox(g, bodyDeep, 0.62, 0.14, 0.03, 0, 0.72, 1.41);
 
-      addPropBox(g, cream, 0.12, 0.08, 0.2, -0.9, 1.07, 1.0);
-      addPropBox(g, cream, 0.12, 0.08, 0.2, 0.9, 1.07, 1.0);
+      // coupling
+      addPropBox(g, steel, 0.55, 0.1, 0.38, 0, 0.34, 0.24);
+      addPropBox(g, propMat('#c6a14f'), 0.28, 0.1, 0.16, 0, 0.42, 0.42);
+      addPropBox(g, steel, 0.78, 0.08, 0.26, 0, 1.32, 0.22);
+      for (let sx = -1; sx <= 1; sx += 2) {
+        addPropBox(g, steel, 0.03, 0.4, 0.2, sx * 0.76, 0.95, 0.25);
+      }
+
+      // front cab
+      addPropBox(g, bodyDeep, 1.42, 0.2, 0.95, 0, 0.33, 0.95);
+      addPropBox(g, body, 1.5, 0.3, 0.62, 0, 0.6, 1.18);
+      addPropBox(g, cream, 1.52, 0.05, 0.65, 0, 0.77, 1.18);
+      addPropBox(g, body, 1.56, 0.56, 0.75, 0, 1.0, 0.85);
+      addPropBox(g, cream, 1.72, 0.06, 0.9, 0, 1.34, 0.85);
+      addPropBox(g, glass, 1.22, 0.3, 0.03, 0, 1.06, 1.24);
+      addPropBox(g, glass, 0.03, 0.26, 0.45, -0.785, 1.06, 0.85);
+      addPropBox(g, glass, 0.03, 0.26, 0.45, 0.785, 1.06, 0.85);
+      addPropBox(g, propMat('#f2a9bb'), 0.82, 0.06, 0.02, 0, 0.88, 1.27);
+      addPropBox(g, bodyDeep, 0.72, 0.22, 0.03, 0, 0.58, 1.48);
+      addPropBox(g, cream, 1.3, 0.12, 0.12, 0, 0.38, 1.47);
+      addPropSphere(g, light, 0.1, 0.08, 0.04, -0.52, 0.72, 1.47, 12);
+      addPropSphere(g, light, 0.1, 0.08, 0.04, 0.52, 0.72, 1.47, 12);
+      addPropBox(g, cream, 0.12, 0.08, 0.2, -0.9, 1.03, 0.85);
+      addPropBox(g, cream, 0.12, 0.08, 0.2, 0.9, 1.03, 0.85);
+      addPropBox(g, propMat('#f2a9bb'), 0.5, 0.09, 0.03, 0, 1.3, 0.55);
       return g;
     }
 
@@ -4948,36 +6240,66 @@
       const light = propMat('#fff2c2');
       const tail = propMat('#cf4a3d');
       const accent = propMat(opts.accent || '#f2a9bb');
+      const steel = propMat('#6f6774');
 
+      // front axle under the cab, rear axle under the trailer
       for (let sx = -1; sx <= 1; sx += 2) {
         for (let sz = -1; sz <= 1; sz += 2) {
-          const z = sz * 1.28;
+          const z = sz * 1.35;
           addPropCylinder(g, tire, 0.23, 0.23, 0.15, 16, sx * 0.79, 0.23, z, 0, 0, Math.PI / 2);
           addPropCylinder(g, hub, 0.095, 0.095, 0.16, 12, sx * 0.79, 0.23, z, 0, 0, Math.PI / 2);
         }
       }
-      addPropBox(g, deep, 1.55, 0.14, 3.7, 0, 0.31, 0);
-      addPropBox(g, body, 1.7, 0.46, 3.9, 0, 0.61, 0);
-      addPropBox(g, cream, 1.72, 0.05, 3.94, 0, 0.45, 0);
-      addPropBox(g, body, 1.62, 0.56, 3.2, 0, 1.1, -0.22);
-      addPropBox(g, cream, 1.82, 0.07, 3.56, 0, 1.39, -0.1);
-      addPropBox(g, glass, 1.28, 0.34, 0.03, 0, 1.18, 1.58);
-      addPropBox(g, accent, 0.9, 0.08, 0.02, 0, 0.86, 1.955);
-      for (let i = 0; i < 3; i++) {
-        addPropBox(g, glass, 0.02, 0.3, 0.68, -0.815, 1.16, -1.05 + i * 0.86);
-        addPropBox(g, glass, 0.02, 0.3, 0.68, 0.815, 1.16, -1.05 + i * 0.86);
-        addPropBox(g, cream, 0.025, 0.3, 0.06, -0.817, 1.16, -1.05 + i * 0.86 + 0.37);
-        addPropBox(g, cream, 0.025, 0.3, 0.06, 0.817, 1.16, -1.05 + i * 0.86 + 0.37);
+
+      // rear carriage chassis
+      addPropBox(g, deep, 1.7, 0.24, 2.55, 0, 0.34, -0.72);
+      addPropBox(g, body, 1.7, 0.46, 2.2, 0, 0.61, -0.85);
+      addPropBox(g, cream, 1.72, 0.05, 2.22, 0, 0.42, -0.85);
+      addPropBox(g, body, 1.62, 0.58, 2.0, 0, 1.08, -0.9);
+      addPropBox(g, cream, 1.84, 0.07, 2.22, 0, 1.39, -0.9);
+      addPropBox(g, accent, 0.06, 0.32, 0.04, -0.82, 1.06, 0.14);
+      addPropBox(g, accent, 0.06, 0.32, 0.04, 0.82, 1.06, 0.14);
+      for (let i = 0; i < 2; i++) {
+        const z = -1.4 + i * 0.82;
+        addPropBox(g, glass, 0.02, 0.3, 0.62, -0.815, 1.12, z);
+        addPropBox(g, glass, 0.02, 0.3, 0.62, 0.815, 1.12, z);
+        addPropBox(g, cream, 0.025, 0.3, 0.06, -0.817, 1.12, z + 0.33);
+        addPropBox(g, cream, 0.025, 0.3, 0.06, 0.817, 1.12, z + 0.33);
       }
-      addPropBox(g, glass, 0.9, 0.22, 0.03, 0, 1.15, -1.83);
-      addPropSphere(g, light, 0.11, 0.085, 0.04, -0.54, 0.7, 1.96, 12);
-      addPropSphere(g, light, 0.11, 0.085, 0.04, 0.54, 0.7, 1.96, 12);
+      addPropBox(g, glass, 0.96, 0.24, 0.03, 0, 1.1, -1.91);
+      addPropBox(g, cream, 0.98, 0.05, 0.04, 0, 1.24, -1.92);
+
+      // coupling / hinge between head and carriage
+      addPropBox(g, steel, 0.68, 0.13, 0.42, 0, 0.34, 0.3);
+      addPropBox(g, steel, 0.5, 0.08, 0.16, 0, 0.44, 0.48);
+      addPropBox(g, steel, 0.94, 0.09, 0.28, 0, 1.35, 0.31);
+      for (let sx = -1; sx <= 1; sx += 2) {
+        addPropBox(g, steel, 0.04, 0.52, 0.2, sx * 0.82, 0.87, 0.36);
+        addPropBox(g, steel, 0.04, 0.08, 0.21, sx * 0.82, 1.08, 0.36);
+        addPropBox(g, steel, 0.04, 0.08, 0.21, sx * 0.82, 0.66, 0.36);
+      }
+
+      // front cab
+      addPropBox(g, deep, 1.5, 0.2, 1.1, 0, 0.33, 1.4);
+      addPropBox(g, body, 1.58, 0.3, 0.72, 0, 0.62, 1.62);
+      addPropBox(g, cream, 1.6, 0.06, 0.75, 0, 0.79, 1.62);
+      addPropBox(g, body, 1.64, 0.58, 1.05, 0, 1.04, 1.0);
+      addPropBox(g, cream, 1.8, 0.07, 1.14, 0, 1.39, 1.0);
+      addPropBox(g, glass, 1.3, 0.31, 0.03, 0, 1.1, 1.53);
+      addPropBox(g, glass, 0.03, 0.27, 0.56, -0.825, 1.1, 1.0);
+      addPropBox(g, glass, 0.03, 0.27, 0.56, 0.825, 1.1, 1.0);
+      addPropBox(g, accent, 0.95, 0.07, 0.02, 0, 0.9, 1.57);
+      addPropBox(g, deep, 0.9, 0.26, 0.03, 0, 0.62, 2.0);
+      addPropBox(g, cream, 1.45, 0.12, 0.13, 0, 0.36, 2.0);
+      addPropBox(g, cream, 1.45, 0.12, 0.13, 0, 0.36, -1.99);
+      addPropSphere(g, light, 0.11, 0.085, 0.04, -0.55, 0.74, 2.0, 12);
+      addPropSphere(g, light, 0.11, 0.085, 0.04, 0.55, 0.74, 2.0, 12);
       addPropSphere(g, tail, 0.075, 0.055, 0.035, -0.62, 0.67, -1.96, 10);
       addPropSphere(g, tail, 0.075, 0.055, 0.035, 0.62, 0.67, -1.96, 10);
-      addPropBox(g, cream, 1.45, 0.12, 0.13, 0, 0.36, 2.0);
-      addPropBox(g, cream, 1.45, 0.12, 0.13, 0, 0.36, -2.0);
-      addPropBox(g, deep, 0.9, 0.1, 0.03, 0, 0.7, 1.975);
-      return { g, body, deep, cream, glass, accent, light, tail };
+      addPropBox(g, steel, 0.18, 0.025, 0.03, -0.94, 1.12, 1.29);
+      addPropBox(g, steel, 0.18, 0.025, 0.03, 0.94, 1.12, 1.29);
+      addPropBox(g, accent, 0.48, 0.1, 0.05, 0, 1.47, 0.87);
+      return { g, body, deep, cream, glass, accent, light, tail, steel };
     }
 
     function buildBus() {
@@ -4990,110 +6312,151 @@
       const hub = propMat('#f0ede4');
       const mint = propMat('#b3dccb');
       const coral = propMat('#f2a9bb');
+      const steel = propMat('#6f6774');
+
+      // three axles under a long articulated bus
       for (let sx = -1; sx <= 1; sx += 2) {
-        for (let sz = -1; sz <= 1; sz += 2) {
-          const z = sz * 1.55;
+        for (let a = 0; a < 3; a++) {
+          const z = a === 0 ? 1.88 : (a === 1 ? -0.55 : -1.75);
           addPropCylinder(g, tire, 0.23, 0.23, 0.15, 16, sx * 0.79, 0.23, z, 0, 0, Math.PI / 2);
           addPropCylinder(g, hub, 0.095, 0.095, 0.16, 12, sx * 0.79, 0.23, z, 0, 0, Math.PI / 2);
         }
       }
-      addPropBox(g, deep, 1.55, 0.14, 4.7, 0, 0.31, 0);
-      addPropBox(g, body, 1.7, 0.46, 4.9, 0, 0.61, 0);
-      addPropBox(g, cream, 1.72, 0.05, 4.94, 0, 0.45, 0);
-      addPropBox(g, body, 1.62, 0.6, 4.2, 0, 1.12, -0.2);
-      addPropBox(g, cream, 1.84, 0.07, 4.6, 0, 1.43, -0.1);
-      addPropBox(g, mint, 1.74, 0.09, 4.92, 0, 0.82, 0);
-      addPropBox(g, glass, 1.28, 0.38, 0.03, 0, 1.19, 2.16);
-      addPropBox(g, coral, 0.5, 0.16, 0.03, 0, 1.32, 2.18);
-      addPropBox(g, cream, 0.65, 0.08, 0.04, 0, 1.33, 2.2);
-      for (let i = 0; i < 5; i++) {
-        const z = -1.65 + i * 0.78;
-        addPropBox(g, glass, 0.02, 0.34, 0.62, -0.815, 1.18, z);
-        addPropBox(g, glass, 0.02, 0.34, 0.62, 0.815, 1.18, z);
-        addPropBox(g, cream, 0.025, 0.34, 0.055, -0.817, 1.18, z + 0.35);
-        addPropBox(g, cream, 0.025, 0.34, 0.055, 0.817, 1.18, z + 0.35);
+
+      // long passenger carriage at the back
+      addPropBox(g, deep, 1.7, 0.22, 3.6, 0, 0.33, -0.7);
+      addPropBox(g, body, 1.7, 0.44, 3.5, 0, 0.6, -0.7);
+      addPropBox(g, cream, 1.72, 0.05, 3.52, 0, 0.4, -0.7);
+      addPropBox(g, mint, 1.74, 0.1, 3.5, 0, 0.84, -0.7);
+      addPropBox(g, body, 1.62, 0.6, 3.35, 0, 1.12, -0.7);
+      addPropBox(g, cream, 1.84, 0.07, 3.76, 0, 1.4, -0.65);
+      for (let i = 0; i < 4; i++) {
+        const z = -2.16 + i * 0.8;
+        addPropBox(g, glass, 0.02, 0.34, 0.64, -0.815, 1.17, z);
+        addPropBox(g, glass, 0.02, 0.34, 0.64, 0.815, 1.17, z);
+        addPropBox(g, cream, 0.025, 0.34, 0.055, -0.817, 1.17, z + 0.36);
+        addPropBox(g, cream, 0.025, 0.34, 0.055, 0.817, 1.17, z + 0.36);
       }
-      addPropBox(g, cream, 0.34, 0.7, 0.03, 0.84, 1.08, 1.35);
-      addPropBox(g, glass, 0.24, 0.46, 0.025, 0.85, 1.12, 1.36);
-      addPropBox(g, glass, 0.9, 0.25, 0.03, 0, 1.16, -2.31);
-      addPropSphere(g, propMat('#fff2c2'), 0.11, 0.085, 0.04, -0.54, 0.7, 2.48, 12);
-      addPropSphere(g, propMat('#fff2c2'), 0.11, 0.085, 0.04, 0.54, 0.7, 2.48, 12);
-      addPropSphere(g, propMat('#cf4a3d'), 0.075, 0.055, 0.035, -0.62, 0.67, -2.48, 10);
-      addPropSphere(g, propMat('#cf4a3d'), 0.075, 0.055, 0.035, 0.62, 0.67, -2.48, 10);
-      addPropBox(g, cream, 1.45, 0.12, 0.13, 0, 0.36, 2.51);
-      addPropBox(g, cream, 1.45, 0.12, 0.13, 0, 0.36, -2.51);
+      addPropBox(g, glass, 0.88, 0.24, 0.03, 0, 1.13, -2.39);
+      addPropBox(g, cream, 0.92, 0.05, 0.04, 0, 1.27, -2.4);
+
+      // articulated bellows between head and carriage
+      for (let i = 0; i < 3; i++) {
+        addPropBox(g, i % 2 === 0 ? steel : cream, 1.52, 0.82, 0.12, 0, 0.92, 1.1 + i * 0.1);
+      }
+      addPropBox(g, steel, 0.6, 0.14, 0.48, 0, 0.33, 1.25);
+      addPropBox(g, steel, 1.5, 0.1, 0.26, 0, 1.35, 1.2);
+      for (let sx = -1; sx <= 1; sx += 2) {
+        addPropBox(g, steel, 0.04, 0.55, 0.26, sx * 0.82, 0.9, 1.2);
+      }
+
+      // front cab
+      addPropBox(g, deep, 1.55, 0.22, 1.05, 0, 0.33, 1.88);
+      addPropBox(g, body, 1.58, 0.28, 0.48, 0, 0.62, 2.1);
+      addPropBox(g, cream, 1.6, 0.05, 0.5, 0, 0.79, 2.1);
+      addPropBox(g, body, 1.66, 0.62, 1.0, 0, 1.05, 1.88);
+      addPropBox(g, cream, 1.8, 0.07, 1.18, 0, 1.4, 1.88);
+      addPropBox(g, glass, 1.34, 0.36, 0.03, 0, 1.15, 2.39);
+      addPropBox(g, coral, 0.56, 0.17, 0.03, 0, 1.35, 2.4);
+      addPropBox(g, cream, 0.72, 0.08, 0.04, 0, 1.36, 2.41);
+      addPropBox(g, glass, 0.03, 0.3, 0.55, -0.84, 1.13, 1.88);
+      addPropBox(g, glass, 0.03, 0.3, 0.55, 0.84, 1.13, 1.88);
+      addPropBox(g, cream, 0.38, 0.72, 0.04, 0.84, 1.08, 1.48);
+      addPropBox(g, glass, 0.26, 0.46, 0.03, 0.85, 1.14, 1.49);
+      addPropBox(g, deep, 0.94, 0.26, 0.03, 0, 0.62, 2.55);
+      addPropBox(g, cream, 1.45, 0.12, 0.13, 0, 0.36, 2.55);
+      addPropBox(g, cream, 1.45, 0.12, 0.13, 0, 0.36, -2.5);
+      addPropSphere(g, propMat('#fff2c2'), 0.11, 0.085, 0.04, -0.54, 0.74, 2.56, 12);
+      addPropSphere(g, propMat('#fff2c2'), 0.11, 0.085, 0.04, 0.54, 0.74, 2.56, 12);
+      addPropSphere(g, propMat('#cf4a3d'), 0.075, 0.055, 0.035, -0.62, 0.67, -2.46, 10);
+      addPropSphere(g, propMat('#cf4a3d'), 0.075, 0.055, 0.035, 0.62, 0.67, -2.46, 10);
+      addPropBox(g, coral, 0.65, 0.1, 0.1, 0, 1.46, 1.55);
       return g;
     }
 
     function buildFireTruck() {
       const v = buildVehicleBase({ body: '#e8a1b0', deep: '#cf8798', roof: '#f0ede4', accent: '#dcc692' });
       const g = v.g;
-      addPropBox(g, propMat('#dcc692'), 0.9, 0.08, 0.16, 0, 1.42, 1.35);
-      addPropBox(g, propMat('#afcfe8'), 0.28, 0.09, 0.12, -0.46, 1.43, 1.35);
-      addPropBox(g, propMat('#f2a9bb'), 0.28, 0.09, 0.12, 0.46, 1.43, 1.35);
-      addPropBox(g, v.cream, 0.5, 0.06, 3.3, 0, 0.83, -0.1);
+      // distinctive fire-chief cab: siren bar and water cannon on the head
+      addPropBox(g, propMat('#dcc692'), 0.9, 0.08, 0.16, 0, 1.45, 1.0);
+      addPropBox(g, propMat('#afcfe8'), 0.28, 0.09, 0.12, -0.46, 1.46, 1.0);
+      addPropBox(g, propMat('#f2a9bb'), 0.28, 0.09, 0.12, 0.46, 1.46, 1.0);
+      addPropCylinder(g, propMat('#c6d7e2'), 0.045, 0.07, 0.32, 10, 0, 1.55, 1.0);
+      addPropSphere(g, propMat('#afcfe8'), 0.07, 0.06, 0.07, 0, 1.73, 1.0, 10);
+      addPropBox(g, v.cream, 1.9, 0.05, 0.06, 0, 0.84, -0.9);
+      // equipment ladder on the rear carriage
       for (let s = -1; s <= 1; s += 2) {
-        addPropBox(g, propMat('#dcc692'), 0.035, 0.03, 2.2, s * 0.9, 1.1, -1.0);
+        addPropBox(g, propMat('#dcc692'), 0.035, 0.03, 2.0, s * 0.9, 1.12, -0.9);
         for (let i = 0; i < 5; i++) {
-          addPropBox(g, propMat('#dcc692'), 0.035, 0.03, 0.06, s * 0.9, 1.0, -1.8 + i * 0.45);
+          addPropBox(g, propMat('#dcc692'), 0.035, 0.03, 0.06, s * 0.9, 1.02, -1.72 + i * 0.42);
         }
       }
-      addPropCylinder(g, propMat('#e8a1b0'), 0.16, 0.16, 0.07, 14, -0.72, 0.88, -0.6, Math.PI / 2, 0, 0);
-      addPropCylinder(g, propMat('#c6d7e2'), 0.045, 0.07, 0.32, 10, 0, 1.52, 1.35);
-      addPropSphere(g, propMat('#afcfe8'), 0.07, 0.06, 0.07, 0, 1.7, 1.35, 10);
-      addPropCylinder(g, propMat('#f6e3a7'), 0.17, 0.17, 0.05, 14, 0.66, 0.96, -0.7, 0, 0, Math.PI / 2);
+      addPropCylinder(g, propMat('#e8a1b0'), 0.16, 0.16, 0.07, 14, -0.72, 0.88, -0.55, Math.PI / 2, 0, 0);
+      addPropCylinder(g, propMat('#f6e3a7'), 0.17, 0.17, 0.05, 14, 0.66, 0.96, -0.65, 0, 0, Math.PI / 2);
+      addPropBox(g, propMat('#6f6774'), 0.25, 0.18, 0.25, 0.68, 1.09, -1.55);
       return g;
     }
 
     function buildAmbulance() {
       const v = buildVehicleBase({ body: '#f8f1e6', deep: '#e1d4c3', roof: '#f8f1e6', accent: '#b3dccb' });
       const g = v.g;
-      addPropBox(g, propMat('#f2a9bb'), 0.44, 0.3, 0.02, 0, 0.9, 1.97);
-      addPropBox(g, propMat('#f8f1e6'), 0.08, 0.18, 0.02, 0, 0.9, 1.985);
-      addPropBox(g, propMat('#b3dccb'), 0.9, 0.06, 3.0, 0, 0.84, -0.15);
+      addPropBox(g, propMat('#b3dccb'), 1.9, 0.05, 0.06, 0, 0.84, -0.9);
+      addPropBox(g, propMat('#afcfe8'), 0.7, 0.08, 0.16, 0, 1.46, 1.0);
+      addPropBox(g, propMat('#f2a9bb'), 0.24, 0.025, 0.075, 0, 0.815, 1.7);
+      addPropBox(g, propMat('#f2a9bb'), 0.075, 0.025, 0.24, 0, 0.815, 1.7);
+      addPropBox(g, propMat('#f2a9bb'), 0.44, 0.3, 0.02, 0.72, 1.08, -0.14);
+      addPropBox(g, propMat('#f8f1e6'), 0.08, 0.18, 0.02, 0.72, 1.08, -0.13);
       addPropBox(g, propMat('#f2a9bb'), 0.55, 0.35, 0.02, 0, 0.97, -1.96);
       addPropBox(g, propMat('#f8f1e6'), 0.1, 0.2, 0.015, 0, 0.97, -1.975);
-      addPropBox(g, propMat('#afcfe8'), 0.7, 0.08, 0.16, 0, 1.43, 1.35);
-      addPropBox(g, propMat('#f2a9bb'), 0.62, 0.035, 0.62, 0, 1.465, -0.6);
-      addPropBox(g, propMat('#f8f1e6'), 0.4, 0.04, 0.12, 0, 1.487, -0.6);
-      addPropBox(g, propMat('#f8f1e6'), 0.12, 0.04, 0.4, 0, 1.487, -0.6);
+      addPropBox(g, propMat('#f2a9bb'), 0.62, 0.035, 0.62, 0, 1.465, -0.7);
+      addPropBox(g, propMat('#f8f1e6'), 0.4, 0.04, 0.12, 0, 1.487, -0.7);
+      addPropBox(g, propMat('#f8f1e6'), 0.12, 0.04, 0.4, 0, 1.487, -0.7);
       return g;
     }
 
     function buildPoliceCar() {
       const v = buildVehicleBase({ body: '#9db1cf', deep: '#8097b7', roof: '#f8f1e6', accent: '#dcc692' });
       const g = v.g;
-      addPropBox(g, v.cream, 0.5, 0.36, 0.02, 0, 0.8, 1.965);
-      addPropBox(g, v.cream, 0.5, 0.36, 0.02, 0, 0.8, -1.965);
-      addPropBox(g, propMat('#dcc692'), 0.22, 0.24, 0.02, -0.45, 0.95, 1.975);
-      addPropBox(g, propMat('#f2a9bb'), 0.38, 0.09, 0.16, -0.25, 1.43, 1.3);
-      addPropBox(g, propMat('#afcfe8'), 0.38, 0.09, 0.16, 0.25, 1.43, 1.3);
+      addPropBox(g, v.cream, 0.5, 0.28, 0.02, 0, 0.72, 1.98);
+      addPropBox(g, propMat('#dcc692'), 0.22, 0.2, 0.02, -0.45, 0.82, 1.99);
+      addPropBox(g, propMat('#f2a9bb'), 0.34, 0.09, 0.16, -0.24, 1.45, 1.0);
+      addPropBox(g, propMat('#afcfe8'), 0.34, 0.09, 0.16, 0.24, 1.45, 1.0);
+      addPropBox(g, propMat('#3f4a5c'), 0.66, 0.025, 0.04, 0, 1.2, -1.7);
+      addPropBox(g, propMat('#3f4a5c'), 0.66, 0.025, 0.04, 0, 1.0, -1.7);
+      addPropBox(g, propMat('#3f4a5c'), 0.025, 0.25, 0.04, -0.3, 1.1, -1.7);
+      addPropBox(g, propMat('#3f4a5c'), 0.025, 0.25, 0.04, 0.3, 1.1, -1.7);
+      addPropBox(g, v.cream, 0.5, 0.2, 0.02, 0, 0.83, -1.96);
       return g;
     }
 
     function buildTruck() {
       const v = buildVehicleBase({ body: '#b3dccb', deep: '#97c6b5', roof: '#f0ede4', accent: '#f6e3a7' });
       const g = v.g;
-      addPropBox(g, propMat('#f0ede4'), 1.35, 0.55, 2.2, 0, 1.12, -0.8);
-      addPropBox(g, propMat('#d2cbd3'), 0.08, 0.5, 0.08, -0.55, 0.8, 0.4);
-      addPropBox(g, propMat('#d2cbd3'), 0.08, 0.5, 0.08, 0.55, 0.8, 0.4);
-      addPropBox(g, v.cream, 1.55, 0.06, 2.3, 0, 1.41, -0.8);
+      addPropBox(g, propMat('#f0ede4'), 1.35, 0.55, 2.0, 0, 1.12, -0.9);
+      addPropBox(g, propMat('#f6e3a7'), 1.36, 0.06, 0.08, 0, 1.13, -0.9);
+      addPropBox(g, propMat('#d2cbd3'), 1.35, 0.04, 0.05, 0, 0.92, -0.9);
+      addPropBox(g, propMat('#d2cbd3'), 0.08, 0.5, 0.08, -0.55, 0.8, -0.02);
+      addPropBox(g, propMat('#d2cbd3'), 0.08, 0.5, 0.08, 0.55, 0.8, -0.02);
+      addPropBox(g, v.cream, 1.55, 0.06, 2.1, 0, 1.41, -0.9);
       addPropBox(g, propMat('#f6e3a7'), 0.9, 0.08, 0.1, 0, 0.84, 1.96);
+      addPropBox(g, v.steel, 0.14, 0.5, 0.14, 0.7, 1.12, 1.35);
       return g;
     }
 
     function buildIceCream() {
       const v = buildVehicleBase({ body: '#f8f1e6', deep: '#e8d8c8', roof: '#f8f1e6', accent: '#f2a9bb' });
       const g = v.g;
-      addPropBox(g, propMat('#f2a9bb'), 0.9, 0.08, 3.1, 0, 0.84, -0.1);
-      addPropBox(g, propMat('#b3dccb'), 0.7, 0.32, 0.03, 0, 1.0, 1.965);
-      addPropBox(g, propMat('#f8f1e6'), 0.52, 0.22, 0.03, 0, 1.0, 1.98);
+      addPropBox(g, propMat('#f2a9bb'), 1.9, 0.05, 0.06, 0, 0.84, -0.9);
+      // serving hatch on the trailer side
+      addPropBox(g, propMat('#b3dccb'), 0.035, 0.34, 0.74, 0.85, 1.06, -0.9);
+      addPropBox(g, propMat('#f8f1e6'), 0.04, 0.24, 0.56, 0.86, 1.06, -0.9);
+      addPropBox(g, propMat('#f2a9bb'), 0.05, 0.06, 0.9, 0.88, 1.26, -0.9);
+      addPropBox(g, propMat('#f6e3a7'), 0.05, 0.05, 0.9, 0.88, 1.2, -0.9);
+      // ice-cream cone on the cab
       addPropSphere(g, propMat('#f6e3a7'), 0.14, 0.14, 0.14, 0, 1.1, 1.84, 14);
       addPropSphere(g, propMat('#f2a9bb'), 0.14, 0.14, 0.14, 0, 1.23, 1.84, 14);
       addPropCylinder(g, propMat('#d4b49b'), 0.025, 0.13, 0.26, 10, 0, 0.9, 1.84);
-      addPropBox(g, propMat('#f2a9bb'), 0.7, 0.08, 0.16, 0, 1.43, 1.35);
-      addPropBox(g, propMat('#f8f1e6'), 0.7, 0.24, 0.03, 0.83, 1.1, 0.6);
-      addPropBox(g, propMat('#b3dccb'), 0.66, 0.19, 0.02, 0.84, 1.1, 0.61);
+      addPropBox(g, propMat('#f2a9bb'), 0.7, 0.08, 0.16, 0, 1.45, 1.0);
       return g;
     }
 
@@ -5721,7 +7084,9 @@
         rot: ((data.rot | 0) % 4 + 4) % 4,
         gx: data.gx | 0,
         gz: data.gz | 0,
-        layer: data.layer | 0
+        layer: data.layer | 0,
+        damaged: data.damaged || null,
+        damageDir: data.damageDir === -1 ? -1 : 1
       };
       if (kind === 'prop') rec.propType = data.propType;
       else {
@@ -5750,6 +7115,7 @@
       scene.add(object3d);
       state.meshById.set(rec.id, object3d);
       registerOccupancy(rec);
+      if (rec.damaged) applyDamageVisual(rec, object3d);
 
       if (animate) {
         const baseScale = object3d.scale.clone();
@@ -5760,6 +7126,12 @@
     }
 
     function removeItem(rec) {
+      if (rec.scorchMesh) {
+        scene.remove(rec.scorchMesh);
+        rec.scorchMesh.geometry.dispose();
+        rec.scorchMesh.material.dispose();
+        rec.scorchMesh = null;
+      }
       const object3d = state.meshById.get(rec.id);
       if (object3d) {
         scene.remove(object3d);
@@ -5829,10 +7201,17 @@
       return {
         size: SIZE,
         bricks: state.bricks.map(function (b) {
-          return { kind: 'brick', type: b.type, rot: b.rot, gx: b.gx, gz: b.gz, layer: b.layer, color: b.color };
+          return {
+            kind: 'brick', type: b.type, rot: b.rot, gx: b.gx, gz: b.gz,
+            layer: b.layer, color: b.color,
+            damaged: b.damaged || null, damageDir: b.damageDir || 1
+          };
         }),
         props: state.props.map(function (p) {
-          return { kind: 'prop', propType: p.propType, rot: p.rot, gx: p.gx, gz: p.gz, layer: p.layer };
+          return {
+            kind: 'prop', propType: p.propType, rot: p.rot, gx: p.gx, gz: p.gz,
+            layer: p.layer, damaged: p.damaged || null, damageDir: p.damageDir || 1
+          };
         })
       };
     }
@@ -5851,6 +7230,14 @@
 
     function rebuildFrom(bricks, props, animate) {
       Array.from(state.meshById.values()).forEach(function (obj) { scene.remove(obj); });
+      state.bricks.concat(state.props).forEach(function (rec) {
+        if (rec.scorchMesh) {
+          scene.remove(rec.scorchMesh);
+          rec.scorchMesh.geometry.dispose();
+          rec.scorchMesh.material.dispose();
+          rec.scorchMesh = null;
+        }
+      });
       state.bricks = [];
       state.props = [];
       state.occupancy.clear();
@@ -5994,6 +7381,33 @@
           gain.gain.exponentialRampToValueAtTime(0.0001, t + 1.05);
           osc.start(t);
           osc.stop(t + 1.12);
+        } else if (kind === 'quake') {
+          osc.type = 'sawtooth';
+          osc.frequency.setValueAtTime(68, t);
+          osc.frequency.exponentialRampToValueAtTime(42, t + 1.0);
+          gain.gain.setValueAtTime(0.0001, t);
+          gain.gain.exponentialRampToValueAtTime(0.05, t + 0.12);
+          gain.gain.exponentialRampToValueAtTime(0.0001, t + 1.1);
+          osc.start(t);
+          osc.stop(t + 1.15);
+        } else if (kind === 'wave') {
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(105, t);
+          osc.frequency.exponentialRampToValueAtTime(62, t + 1.2);
+          gain.gain.setValueAtTime(0.0001, t);
+          gain.gain.exponentialRampToValueAtTime(0.03, t + 0.2);
+          gain.gain.exponentialRampToValueAtTime(0.0001, t + 1.3);
+          osc.start(t);
+          osc.stop(t + 1.35);
+        } else if (kind === 'thunder') {
+          osc.type = 'square';
+          osc.frequency.setValueAtTime(150, t);
+          osc.frequency.exponentialRampToValueAtTime(38, t + 0.7);
+          gain.gain.setValueAtTime(0.0001, t);
+          gain.gain.exponentialRampToValueAtTime(0.045, t + 0.008);
+          gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.82);
+          osc.start(t);
+          osc.stop(t + 0.86);
         } else {
           osc.type = 'triangle';
           osc.frequency.setValueAtTime(760, t);
@@ -6824,6 +8238,13 @@
         else triggerEvent(btn.dataset.event);
       });
     }
+    if (disasterRowEl) {
+      disasterRowEl.addEventListener('click', function (e) {
+        const btn = e.target.closest('.disaster-btn');
+        if (!btn) return;
+        triggerEvent(btn.dataset.disaster);
+      });
+    }
     function setEnvPanel(open) {
       if (!envPanelEl || !envToggleEl) return;
       envPanelEl.hidden = !open;
@@ -7268,6 +8689,7 @@
         const p = state.props[i];
         const def = PROP_MAP[p.propType];
         if (!def || (def.cat !== 'person' && def.cat !== 'animal' && def.cat !== 'char')) continue;
+        if (p.damaged) continue;
         if (tornado.active && tornado.captured.has(p.id)) continue;
         const g = state.meshById.get(p.id);
         if (!g) continue;
@@ -7294,7 +8716,11 @@
       updateCharacterIdle(now);
       updateWeather(now);
       updateTornado(now);
+      updateQuake(now);
+      updateTsunami(now);
+      updateWeatherLightning(now);
       updateBackdrop(now);
+      updateFx(now);
 
       if (blueprintMesh && blueprintMesh.visible) {
         blueprintMesh.material.opacity = 0.13 + Math.sin(now * 0.0016) * 0.025;
