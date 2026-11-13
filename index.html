@@ -923,6 +923,26 @@
   .env-btn--danger { background: rgba(203, 113, 101, .12); color: #a55f57; }
   .env-btn--danger:hover { background: rgba(203, 113, 101, .22); }
   .env-btn:focus-visible { outline: 2px solid var(--coral); outline-offset: 1px; }
+
+  /* touch devices: drop expensive glass blur + raise panel opacity */
+  html.is-mobile .brand,
+  html.is-mobile .counter,
+  html.is-mobile .actions,
+  html.is-mobile .hint,
+  html.is-mobile .intro,
+  html.is-mobile .env-summary,
+  html.is-mobile .env-panel,
+  html.is-mobile .dock {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    background: rgba(255, 252, 248, .92);
+  }
+  html.is-mobile .toast,
+  html.is-mobile .modal {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+
   @media (max-width: 760px) {
     .celestial { display: none; }
     .env-control { top: 76px; right: 12px; }
@@ -935,7 +955,6 @@
     .env-btn { height: 28px; min-width: 29px; padding: 0 6px; font-size: 8.5px; }
     .intro { top: 132px; }
   }
-  @media (prefers-reduced-motion: reduce) {
   @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after {
       animation-duration: .001ms !important;
@@ -1146,6 +1165,18 @@
     const GAP = 0.04;
     const SAVE_KEY = 'brick-studio-v1';
 
+    const IS_MOBILE_DEVICE = (function () {
+      try {
+        const ua = navigator.userAgent || '';
+        const coarse = window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
+        const ipad = navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1;
+        return !!(coarse || ipad || /Android|iPhone|iPad|iPod|Mobile/i.test(ua));
+      } catch (err) {
+        return false;
+      }
+    })();
+    if (IS_MOBILE_DEVICE) document.documentElement.classList.add('is-mobile');
+
     const CATEGORIES = [
       { id: 'basic', label: '基础' },
       { id: 'special', label: '特殊' },
@@ -1339,22 +1370,47 @@
     // ---------------------------------------------------------------- renderer
     let renderer;
     try {
-      renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true });
+      renderer = new THREE.WebGLRenderer({
+        antialias: !IS_MOBILE_DEVICE,
+        alpha: true,
+        powerPreference: 'high-performance'
+      });
     } catch (err) {
       introEl.classList.remove('is-hidden');
       introEl.innerHTML = '<b>这个浏览器暂时无法开启 3D 画布</b> · 请换用最新版 Chrome 或 Safari';
       return;
     }
 
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    const renderQuality = {
+      mobile: IS_MOBILE_DEVICE,
+      cap: IS_MOBILE_DEVICE ? 1.5 : 2,
+      dpr: 0,
+      warmupUntil: performance.now() + 3500,
+      perfLast: 0,
+      perfAcc: 0,
+      perfFrames: 0,
+      windowStart: 0
+    };
+    renderQuality.dpr = Math.min(window.devicePixelRatio || 1, renderQuality.cap);
+    renderer.setPixelRatio(renderQuality.dpr);
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.shadowMap.enabled = true;
-    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.shadowMap.type = IS_MOBILE_DEVICE ? THREE.PCFShadowMap : THREE.PCFSoftShadowMap;
+    if (IS_MOBILE_DEVICE) {
+      renderer.shadowMap.autoUpdate = false;
+      renderer.shadowMap.needsUpdate = true;
+    }
     renderer.toneMapping = THREE.NoToneMapping;
     if ('outputEncoding' in renderer) renderer.outputEncoding = THREE.sRGBEncoding;
     if (THREE.ColorManagement) THREE.ColorManagement.enabled = true;
     stageEl.appendChild(renderer.domElement);
     const canvasEl = renderer.domElement;
+
+    function applyRenderDpr(dpr) {
+      renderQuality.dpr = dpr;
+      renderer.setPixelRatio(dpr);
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    }
 
     const scene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(42, window.innerWidth / window.innerHeight, 0.1, 400);
@@ -1422,7 +1478,8 @@
     const keyLight = new THREE.DirectionalLight(0xfff2dd, 0.95);
     keyLight.position.set(26, 44, 18);
     keyLight.castShadow = true;
-    keyLight.shadow.mapSize.set(2048, 2048);
+    const shadowMapSize = IS_MOBILE_DEVICE ? 1024 : 2048;
+    keyLight.shadow.mapSize.set(shadowMapSize, shadowMapSize);
     keyLight.shadow.camera.left = -34;
     keyLight.shadow.camera.right = 34;
     keyLight.shadow.camera.top = 34;
@@ -4559,7 +4616,8 @@
       topSlab.translate(0, -0.04, 0);
       parts.push(topSlab);
 
-      const studGeo = new THREE.CylinderGeometry(0.28, 0.3, STUD, 12);
+      const studSegments = IS_MOBILE_DEVICE ? 8 : 12;
+      const studGeo = new THREE.CylinderGeometry(0.28, 0.3, STUD, studSegments);
       for (let x = 0; x < SIZE; x++) {
         for (let z = 0; z < SIZE; z++) {
           const s = studGeo.clone();
@@ -8739,7 +8797,7 @@
     window.addEventListener('resize', function () {
       camera.aspect = window.innerWidth / window.innerHeight;
       camera.updateProjectionMatrix();
-      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+      renderer.setPixelRatio(Math.min(renderQuality.dpr, window.devicePixelRatio || 1));
       renderer.setSize(window.innerWidth, window.innerHeight);
       if (cam.userZoomed) applyCamera();
       else fitViewToPlate();
@@ -8879,8 +8937,64 @@
       }
     }
 
+    let lastRafAt = 0;
+    let refreshEma = 16.7;
+    let skipRafFrame = false;
+    let shadowFrame = 0;
+
+    function shouldSkipExtraFrame(now) {
+      if (lastRafAt) {
+        const delta = now - lastRafAt;
+        if (delta > 2 && delta < 60) refreshEma = refreshEma * 0.92 + delta * 0.08;
+      }
+      lastRafAt = now;
+      if (renderQuality.mobile && refreshEma < 10.2) {
+        skipRafFrame = !skipRafFrame;
+        return skipRafFrame;
+      }
+      skipRafFrame = false;
+      return false;
+    }
+
+    function monitorRenderQuality(now) {
+      if (!renderQuality.mobile) return;
+      if (now < renderQuality.warmupUntil) {
+        renderQuality.perfLast = now;
+        return;
+      }
+      if (!renderQuality.windowStart) {
+        renderQuality.windowStart = now;
+        renderQuality.perfLast = 0;
+      }
+      if (renderQuality.perfLast) {
+        const dt = now - renderQuality.perfLast;
+        if (dt > 0 && dt < 200) {
+          renderQuality.perfAcc += dt;
+          renderQuality.perfFrames++;
+        }
+      }
+      renderQuality.perfLast = now;
+      if (now - renderQuality.windowStart < 1800 || renderQuality.perfFrames < 4) return;
+      const avg = renderQuality.perfAcc / renderQuality.perfFrames;
+      renderQuality.perfAcc = 0;
+      renderQuality.perfFrames = 0;
+      renderQuality.windowStart = now;
+      if (avg > 24 && renderQuality.dpr > 1) {
+        applyRenderDpr(Math.max(1, renderQuality.dpr - 0.25));
+        renderQuality.warmupUntil = now + 2500;
+        renderQuality.windowStart = 0;
+        renderQuality.perfLast = 0;
+      }
+    }
+
     function frame(now) {
       requestAnimationFrame(frame);
+      if (shouldSkipExtraFrame(now)) return;
+      if (renderQuality.mobile) {
+        shadowFrame++;
+        if (shadowFrame % 2 === 0) renderer.shadowMap.needsUpdate = true;
+      }
+      monitorRenderQuality(now);
       animateSpawns(now);
       updateCharacterIdle(now);
       updateWeather(now);
